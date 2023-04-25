@@ -11,3 +11,4 @@ Template per .md delle varianti
 </ul>
 
 ## Comments and notes
+Fatto per copia incollare questa cartella per ogni nuova variante
