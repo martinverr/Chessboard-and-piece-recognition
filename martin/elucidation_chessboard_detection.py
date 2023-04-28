@@ -6,6 +6,8 @@ from collections import defaultdict
 from functools import partial
 from sklearn.utils import shuffle
 import cv2
+from sklearn import cluster as skcluster
+import os, glob
 
 SQUARE_SIDE_LENGTH = 227
 
@@ -108,22 +110,26 @@ def four_point_transform(img, points, square_length=SQUARE_SIDE_LENGTH):
     return cv2.warpPerspective(img, M, (board_length, board_length))
 
 
-def find_board(fname, output_name):
+def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     """
     Given a filename, returns the board image.
     """
     start = time()
     img = cv2.imread(fname)
-    #cv2.imshow("img", img)
-    #cv2.waitKey(0)
+    if verbose_show:
+        cv2.imshow("img", img)
+        cv2.waitKey(0)
     assert img is not None
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #cv2.imshow("grey img", gray)
-    #cv2.waitKey(0)
+    if verbose_show:
+        cv2.imshow("grey img", gray)
+        cv2.waitKey(0)
+
     gray = cv2.blur(gray, (3, 3)) # TODO auto adjust the size of the blur
-    #cv2.imshow("blurred grey img", gray)
-    #cv2.waitKey(0)
+    if verbose_show:
+        cv2.imshow("blurred grey img", gray)
+        cv2.waitKey(0)
 
     # Canny edge detection
 
@@ -134,8 +140,9 @@ def find_board(fname, output_name):
 
     sigma=0.20
     edges = auto_canny(gray, sigma=sigma)    
-    #cv2.imshow(f"cannied {sigma}", edges)
-    #cv2.waitKey(0)
+    if verbose_show:
+        cv2.imshow(f"cannied {sigma}", edges)
+        cv2.waitKey(0)
     #assert np.count_nonzero(edges) / float(gray.shape[0] * gray.shape[1]) < 0.015
 
     # Hough line detection
@@ -148,8 +155,7 @@ def find_board(fname, output_name):
     #h, v = hor_vert_lines(lines)
 
     # metodo kmeans su linee
-    from sklearn import cluster
-    angleClustering = cluster.KMeans(n_clusters=2).fit(lines[:,1].reshape(-1,1))
+    angleClustering = skcluster.KMeans(n_clusters=2).fit(lines[:,1].reshape(-1,1))
     h = lines[angleClustering.labels_==0]
     v = lines[angleClustering.labels_==1]
     
@@ -157,8 +163,8 @@ def find_board(fname, output_name):
     #clusteringH = cluster.AgglomerativeClustering(distance_threshold=(lines[:,1].min(axis=1) + lines[:,1].max(axis=1))/9) \
     #    .fit(h[:,0].reshape(-1,1))
     
-    distanceClusteringH = cluster.KMeans(n_clusters=9).fit(h[:,0].reshape(-1,1))
-    distanceClusteringV = cluster.KMeans(n_clusters=9).fit(v[:,0].reshape(-1,1))
+    distanceClusteringH = skcluster.KMeans(n_clusters=9).fit(h[:,0].reshape(-1,1))
+    distanceClusteringV = skcluster.KMeans(n_clusters=9).fit(v[:,0].reshape(-1,1))
 
     hMeanDists = distanceClusteringH.cluster_centers_
     vMeanDists = distanceClusteringV.cluster_centers_
@@ -181,10 +187,12 @@ def find_board(fname, output_name):
             cv2.line(img,(x1,y1),(x2,y2),color,2)
     
     # create output of the hough lines found (not clustered) onto the img
-    if True:
+    if verbose_output:
         output_lines(img, h, (0,0,255))
         output_lines(img, v, (0,255,0))
-        cv2.imwrite(f'./martin/output/lines_{output_name}', img)
+        output = f'./martin/output/lines_{output_name}'
+        print(f"created: {output}")
+        cv2.imwrite(output, img)
     
     # calcolo intersezioni
     #points = intersections(h, v)
@@ -199,12 +207,13 @@ def find_board(fname, output_name):
     if False:
         for point in points:
             cv2.circle(img, tuple(point), 25, (0,0,255), -1)
-        cv2.imwrite('points.jpg', img)
+        cv2.imwrite(f'./martin/output/points_{output_name}', img)
     
     # Perspective transform
     #new_img = four_point_transform(img, points)
 
     #return new_img
+
 
 def split_board(img):
     """
@@ -218,9 +227,6 @@ def split_board(img):
     return arr
 
 
-
-import os, glob
-
 def main():
     input_imgs = glob.glob('./martin/input/*')
     print(input_imgs)
@@ -232,7 +238,7 @@ def main():
         print(f"file found: {input_img}")
         imgname = input_img.split('\\')[-1]
     
-        find_board(input_img, f"{'output_' + imgname}")
+        find_board(input_img, f"{'output_' + imgname}", verbose_output=True)
         #cv2.imwrite('crop.jpg', find_board('./martin/input/1.jpg', '1'))
 
 
