@@ -9,7 +9,7 @@ import cv2
 
 SQUARE_SIDE_LENGTH = 227
 
-def auto_canny(image, sigma=0.33):
+def auto_canny(image, sigma=0.33, verbose=False):
     """
     Canny edge detection with automatic thresholds.
     """
@@ -20,7 +20,8 @@ def auto_canny(image, sigma=0.33):
     upper = int(min(255, (1.0 + sigma) * v))
     lower = upper/3
     edged = cv2.Canny(image, lower, upper)
-    print(f"canny upper thr:{upper}, lower thr:{lower}")
+    if verbose:
+        print(f"canny upper thr:{upper}, lower thr:{lower}")
  
     # return the edged image
     return edged
@@ -107,7 +108,7 @@ def four_point_transform(img, points, square_length=SQUARE_SIDE_LENGTH):
     return cv2.warpPerspective(img, M, (board_length, board_length))
 
 
-def find_board(fname, imgname):
+def find_board(fname, output_name):
     """
     Given a filename, returns the board image.
     """
@@ -183,7 +184,7 @@ def find_board(fname, imgname):
     if True:
         output_lines(img, h, (0,0,255))
         output_lines(img, v, (0,255,0))
-        print(cv2.imwrite(f'./martin/output/{imgname}_lines.jpg', img))
+        cv2.imwrite(f'./martin/output/lines_{output_name}', img)
     
     # calcolo intersezioni
     #points = intersections(h, v)
@@ -216,7 +217,24 @@ def split_board(img):
             arr.append(img[i * sq_len : (i + 1) * sq_len, j * sq_len : (j + 1) * sq_len])
     return arr
 
-import os
-print(f"file exists: {os.path.isfile('./martin/input/2.jpeg')}")
-find_board('./martin/input/2.jpeg', '2')
-#cv2.imwrite('crop.jpg', find_board('./martin/input/1.jpg', '1'))
+
+
+import os, glob
+
+def main():
+    input_imgs = glob.glob('./martin/input/*')
+    print(input_imgs)
+
+    for input_img in input_imgs:
+        if not os.path.isfile(input_img):
+            continue    
+
+        print(f"file found: {input_img}")
+        imgname = input_img.split('\\')[-1]
+    
+        find_board(input_img, f"{'output_' + imgname}")
+        #cv2.imwrite('crop.jpg', find_board('./martin/input/1.jpg', '1'))
+
+
+if __name__ == "__main__":
+    main()
