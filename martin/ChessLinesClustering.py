@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn import cluster as skcluster
-
+import cv2
+from chessboard_detection_functions import output_lines
 
 class ChessLines():
     """ Divides all 'lines' into 'h'(horizontal) and 'v'(vertical) lines
@@ -34,7 +35,7 @@ class ChessLines():
             self.cluster()
     
 
-    def cluster(self, cluster_type=None):
+    def cluster(self, cluster_type=None, img=None):
         """ Update cluster_type of the class if given
         
         Cluster lines if cluster_type is specified
@@ -57,7 +58,7 @@ class ChessLines():
         if self.cluster_type == 'KmeansLines':
             self._h_clustered, self._v_clustered = self._KmeansLines()
         elif self.cluster_type == 'manual':
-            self._h_clustered, self._v_clustered = self._manualClustering()
+            self._h_clustered, self._v_clustered = self._manualClustering(img)
 
         
     def getHLines(self):
@@ -98,8 +99,76 @@ class ChessLines():
 
         return hClusteredLines, vClusteredLines
 
-    def _manualCLustering(self):
-        pass
+
+    def _sortLinesByRho(self):
+        self._h = self._h[self._h[:, 0].argsort()]
+        self._v = self._v[self._v[:, 0].argsort()]
+
+
+
+    def _manualClustering(self, image=None):
+        self._sortLinesByRho()
+        output_lines(image, self._h, (0,255,0))
+        cv2.imshow("clustered lines", image)
+        cv2.waitKey(0)
+    
+        m_old = None
+        c_old = None
+        
+        for rho, theta in self._h:
+            # P0 punto proiezione da origine a retta
+            x0 = np.cos(theta)*rho
+            y0 = np.sin(theta)*rho
+            
+            # P1 punto casuale calcolato a partire da P0
+            x1 = int(x0 + 1000 * (-np.sin(theta)))
+            y1 = int(y0 + 1000 * (np.cos(theta)))
+            # P2 punto casuale calcolato a partire da P0
+            x2 = int(x0 - 1000 * (-np.sin(theta)))
+            y2 = int(y0 - 1000 * (np.cos(theta)))
+            
+            # x = [x0, x1]
+            # y = [y0, y1]
+
+            # # Calculate the coefficients. This line answers the initial question. 
+            # coefficients = np.polyfit(x, y, 1)
+            
+            """ y = mx + c """
+            m = float(y2 - y1) / (x2 - x1)
+            c = (y2 - (m * x2))
+            coefficients = [m, c]
+            
+            
+            print(f"line: {(rho, theta)}")
+            print(f"points: {(x0, y0)} ; {x1,y1}")
+            print(f"coefficients: {coefficients}")
+            if c_old is not None:
+                print(f"distance with previous point in x=0: {np.absolute(c_old - c)}\n")
+            """
+            problema: con la differenza dei c (intersetta con x=0), ho differenze molto buone con
+            linee orizzontali vere, ma non con linee verticali o quasi (si incontreranno in una C 
+            vicina tutte e l'angolo diventa troppo importante per l'intersezione).
+            
+            Sol:
+            1) controllo che m<1 o m>1 (sotto o sopra la bisettrice) per stabilire linee circa orizz
+            o verticali. a questo punto so se usare intersezione con x=0 (c) oppure con y=0
+            nota: forse meglio intersecare con x=W/2 e y=H/2
+            
+            2) oppure interseco con retta ortogonale(coef anf = -1/m) alla linea mediana (numpy su linee)
+            che passa per il centro (x=W/2 e y=H/2). Sicuramente il piu' affidabile, ma rognoso forse
+            """
+            
+            if(image):
+                cv2.line(image,(x1,y1),(x2,y2),(255,0,0),2)
+                cv2.imshow(f"{(rho, theta)}", image)
+                cv2.waitKey(0)
+            
+            m_old = m
+            c_old = c
+            
+            
+        return self._h, self._v
+            
     
 
     def _agglomerativeCLustering(self):

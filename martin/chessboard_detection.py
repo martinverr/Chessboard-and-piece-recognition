@@ -62,9 +62,20 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     
     # clustering linee con kmeans
     #chessLines.cluster('KmeansLines')
-    #hLinesCLustered = hLines
-    #vLinesCLustered = vLines
+    # hLinesCLustered = chessLines.getHLinesClustered
+    # vLinesCLustered = chessLines.getVLinesClustered
     
+    # clustering linee manuale
+    chessLines.cluster('manual', img=img)
+    hLinesCLustered = chessLines.getHLinesClustered()
+    vLinesCLustered = chessLines.getVLinesClustered()
+    
+
+    imgcopy = img.copy()
+    output_lines(imgcopy, hLinesCLustered, (0,0,255))
+    output_lines(imgcopy, vLinesCLustered, (0,255,0))
+    #cv2.imshow("clustered lines", imgcopy)
+    #cv2.waitKey(0)
     
     # create output of the hough lines found (not clustered) onto the img
     if verbose_output:
