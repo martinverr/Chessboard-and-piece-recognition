@@ -45,7 +45,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     # Hough line detection
     lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
     
-    chessLines = ChessLines(lines)
+    chessLines = ChessLines(lines, cluster_type = "KmeansLines")
     
     # Horizontal and Vertical lines
     
@@ -107,7 +107,7 @@ def main():
         print(f"file found: {input_img}")
         imgname = input_img.split('\\')[-1]
     
-        find_board(input_img, f"{'output_' + imgname}", verbose_output=True)
+        find_board(input_img, f"{'output_' + imgname}",verbose_show=False ,verbose_output=True)
         #cv2.imwrite('crop.jpg', find_board('./martin/input/1.jpg', '1'))
 
 

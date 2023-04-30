@@ -75,15 +75,26 @@ class ChessLines():
 
     def _KmeansLines(self):
         distanceClusteringH = skcluster.KMeans(n_clusters=9).fit(self._h[:,0].reshape(-1,1))
-        distanceClusteringV = skcluster.KMeans(n_clusters=9).fit(self.v[:,0].reshape(-1,1))
+        distanceClusteringV = skcluster.KMeans(n_clusters=9).fit(self._v[:,0].reshape(-1,1))
 
         hMeanDists = distanceClusteringH.cluster_centers_
         vMeanDists = distanceClusteringV.cluster_centers_
-        hMeanAngles = self._angleClustering.cluster_centers_[0].repeat(9).reshape(9,1)
-        vMeanAngles = self._angleClustering.cluster_centers_[1].repeat(9).reshape(9,1)
+        #hMeanAngles = self._angleClustering.cluster_centers_[0].repeat(9).reshape(9,1)
+        #vMeanAngles = self._angleClustering.cluster_centers_[1].repeat(9).reshape(9,1)
 
-        hClusteredLines = np.append(hMeanDists, hMeanAngles, axis=1)
-        vClusteredLines = np.append(vMeanDists, vMeanAngles, axis=1)
+        hMeanAngles = np.array([], dtype=np.float64)
+        vMeanAngles = np.array([], dtype=np.float64)
+
+        for c in np.sort(np.unique(distanceClusteringH.labels_)):
+            h_cluster_line = self._h[distanceClusteringH.labels_ == c] #tutte le linee del cluster c
+            hMeanAngles = np.append(hMeanAngles, np.average(h_cluster_line[:,1])) #calcolo theta medio del cluster c
+
+        for c in np.sort(np.unique(distanceClusteringV.labels_)):
+            v_cluster_line = self._v[distanceClusteringV.labels_ == c] #tutte le linee del cluster c
+            vMeanAngles = np.append(vMeanAngles, np.average(v_cluster_line[:,1])) #calcolo theta medio del cluster c
+
+        hClusteredLines = np.append(hMeanDists, hMeanAngles.reshape(9,1), axis=1)
+        vClusteredLines = np.append(vMeanDists, vMeanAngles.reshape(9,1), axis=1)
 
         return hClusteredLines, vClusteredLines
 
