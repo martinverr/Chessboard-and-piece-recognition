@@ -66,7 +66,8 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     # vLinesCLustered = chessLines.getVLinesClustered
     
     # clustering linee manuale
-    chessLines.cluster('KmeansLines', img=img)
+    w, h = img.shape[0] , img.shape[1]
+    chessLines.cluster('manual', img=img, w=w, h=h)
     hLinesCLustered = chessLines.getHLinesClustered()
     vLinesCLustered = chessLines.getVLinesClustered()
     

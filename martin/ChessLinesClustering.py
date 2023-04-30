@@ -3,6 +3,8 @@ from sklearn import cluster as skcluster
 import cv2
 from chessboard_detection_functions import output_lines
 
+
+
 class ChessLines():
     """ Divides all 'lines' into 'h'(horizontal) and 'v'(vertical) lines
     
@@ -40,7 +42,7 @@ class ChessLines():
             self.cluster()
     
 
-    def cluster(self, cluster_type=None, img=None):
+    def cluster(self, cluster_type=None, img=None, w=800, h=800):
         """ Update cluster_type of the class if given
         
         Cluster lines if cluster_type is specified
@@ -63,7 +65,7 @@ class ChessLines():
         if self.cluster_type == 'KmeansLines':
             self._h_clustered, self._v_clustered = self._KmeansLines()
         elif self.cluster_type == 'manual':
-            self._h_clustered, self._v_clustered = self._manualClustering(img)
+            self._h_clustered, self._v_clustered = self._manualClustering(img, w=w, h=h)
 
         
     def getHLines(self):
@@ -105,40 +107,61 @@ class ChessLines():
         return hClusteredLines, vClusteredLines
 
 
+    def _manualClustering(self, image=None, w=800, h=800, verbose=False):
+        
+        m_h = self._addInterceptionsToLines(self._h)
+        m_w = self._addInterceptionsToLines(self._v)
+        
+        # TODO: understand which line are real horizontal and vertical by m angular coef
+        
+        # TODO: sort horizontal lines with _sortLinesByIntersectionOnAxisY()
+        # TODO: sort vertical lines with _sortLinesByIntersectionOnAxisX()
+        
+        # TODO: find the avg_step among clusters of line
+        
+        # TODO: cluster lines when we encounter a new line with a larger step than avg_step
+        
+        
+        #debug show
+        if verbose:
+            output_lines(image, self._v, (0,255,0))
+            cv2.imshow("clustered lines", image)
+            cv2.waitKey(0)
+        
+        return self._h, self._v
+            
+
+    def _agglomerativeCLustering(self):
+        # prova con cluster agglomerativo(no n_cluster necessario)
+        clusteringH = skcluster.AgglomerativeClustering(
+            distance_threshold=(self.lines[:,1].mean(axis=1))) \
+                .fit(self._h[:,0].reshape(-1,1))
+
     def _sortLinesByRho(self):
         self._h = self._h[self._h[:, 0].argsort()]
         self._v = self._v[self._v[:, 0].argsort()]
 
+    def _sortLinesByIntersectionOnAxisX(self):
+        self._h = self._h[self._h[:, 3].argsort()]
+        self._v = self._v[self._v[:, 3].argsort()]
 
-
-    def _manualClustering(self, image=None):
-        """
-        problema: con la differenza dei c (intersetta con x=0), ho differenze molto buone con
-        linee orizzontali vere, ma non con linee verticali o quasi (si incontreranno in una C 
-        vicina tutte e l'angolo diventa troppo importante per l'intersezione).
-        
-        Sol:
-        1) controllo che m<1 o m>1 (sotto o sopra la bisettrice) per stabilire linee circa orizz
-        o verticali. a questo punto so se usare intersezione con x=0 (c) oppure con y=0
-        nota: forse meglio intersecare con x=W/2 e y=H/2
-        
-        2) oppure interseco con retta ortogonale(coef anf = -1/m) alla linea mediana (numpy su linee)
-        che passa per il centro (x=W/2 e y=H/2). Sicuramente il piu' affidabile, ma rognoso forse
-        """
-        
-        self._sortLinesByRho()
-        
-        #debug show
-        output_lines(image, self._h, (0,255,0))
-        cv2.imshow("clustered lines", image)
-        cv2.waitKey(0)
+    def _sortLinesByIntersectionOnAxisY(self):
+        self._h = self._h[self._h[:, 2].argsort()]
+        self._v = self._v[self._v[:, 2].argsort()]
     
+    def _addInterceptionsToLines(self, lines, image=None, w=800/2, h=0, verbose=False):
+        # in case we are debugging, for visual easyness, try to presort (sort by rho does not work perfectly)
+        if verbose:
+            self._sortLinesByRho()
+        
         # vars of the previous line for the loop so that can be compared to the current one
         m_old = None
         c_old = None
         prev_line = None
-    
-        for rho, theta in self._h:
+        prev_intersectionX = None
+        intersections = np.ndarray(shape=(1,2), dtype=np.float32)
+        
+        for rho, theta in lines:
             # P0 punto proiezione da origine a retta
             x0 = np.cos(theta)*rho
             y0 = np.sin(theta)*rho
@@ -155,48 +178,45 @@ class ChessLines():
             m = float(y2 - y1) / (x2 - x1)
             c = (y2 - (m * x2))
             coefficients = [m, c]
+            intersectionX = line_intersection(m, c, 0, w)[0]
             
-            #debug stuff
-            print(f"\nline: {(rho, theta)}")
-            print(f"points: {(x0, y0)} ; {x1,y1}")
-            print(f"coefficients: {coefficients}")
-            if c_old is not None:
-                print(f"distance with previous point in x=0: {np.absolute(c_old - c)}")
-            if prev_line is not None:
-                print(f"distance with previous line: {_line_distance(rho, theta, prev_line[0], prev_line[1])}")
-            
-            # debug show what line is being analysed
-            if(image is not None):
-                cv2.line(image,(x1,y1),(x2,y2),(255,0,0),2)
-                cv2.imshow(f"{(rho, theta)}", image)
-                cv2.waitKey(0)
+            intersections = np.append(intersections, np.ndarray(buffer=np.array([intersectionX, c]), shape=(1,2)), axis=0)
+
+            if verbose:
+                print(f"\nline(rho, theta): {(rho, theta)}")
+                print(f"\nline: {m}x + {c}")
+                print(f"intersection x: {intersectionX}")
+                print(f"coefficients: {coefficients}")
+                if c_old is not None:
+                    print(f"distance with previous point in x=0: {np.absolute(c_old - c)}")
+                if prev_line is not None:
+                    print(f"distance with previous line in y=0: { np.absolute(intersectionX - prev_intersectionX)}")
+
+                # debug show what line is being analysed
+                if(image is not None):
+                    cv2.line(image,(x1,y1),(x2,y2),(255,0,0),2)
+                    cv2.imshow(f"{(rho, theta)}", image)
+                    cv2.waitKey(0)
             
             # remember as next previous line
             m_old = m
             c_old = c
             prev_line = [rho, theta]
-            
-            
-        return self._h, self._v
-            
-    
-
-    def _agglomerativeCLustering(self):
-        # prova con cluster agglomerativo(no n_cluster necessario)
-        clusteringH = skcluster.AgglomerativeClustering(
-            distance_threshold=(self.lines[:,1].mean(axis=1))) \
-                .fit(self._h[:,0].reshape(-1,1))
+            prev_intersectionX = intersectionX
+        
+        self._v = np.append(self._v, intersections[1:], axis=1)
+        
+        #TODO return m angular coef, mean or last (shoulb be good enough)
 
 
-def _line_distance(rho1, theta1, rho2, theta2):
-    # Convert polar equations to Cartesian equations
-    x1, y1 = rho1 * np.cos(theta1), rho1 * np.sin(theta1)
-    x2, y2 = rho2 * np.cos(theta2), rho2 * np.sin(theta2)
 
-    # Calculate coefficients of line 1
-    A1, B1, C1 = y1 - y2, x2 - x1, x1 * y2 - x2 * y1
+def line_intersection(m1, c1, m2, c2):
+    # Check if lines are parallel
+    if m1 == m2:
+        return None
 
-    # Calculate distance between line 1 and line 2
-    d = np.absolute((A1 * x2 + B1 * y2 + C1) / np.sqrt(A1**2 + B1**2))
+    # Compute x- and y-coordinates of intersection point
+    x = (c2 - c1) / (m1 - m2)
+    y = m1 * x + c1
 
-    return d
+    return (x, y)
