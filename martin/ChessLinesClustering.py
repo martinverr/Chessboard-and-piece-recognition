@@ -25,7 +25,12 @@ class ChessLines():
         
         self.lines = np.reshape(lines, (-1, 2))
         
-        angleClustering = skcluster.KMeans(n_clusters=2).fit(self.lines[:,1].reshape(-1,1))
+        tocluster = np.column_stack((
+            np.sin(self.lines[:,1]*2), 
+            np.cos(self.lines[:,1]*2)
+            ))
+        
+        angleClustering = skcluster.KMeans(n_clusters=2).fit(tocluster)
         self._angleClustering = angleClustering
         self._h = self.lines[angleClustering.labels_==0]
         self._v = self.lines[angleClustering.labels_==1]
@@ -107,14 +112,32 @@ class ChessLines():
 
 
     def _manualClustering(self, image=None):
+        """
+        problema: con la differenza dei c (intersetta con x=0), ho differenze molto buone con
+        linee orizzontali vere, ma non con linee verticali o quasi (si incontreranno in una C 
+        vicina tutte e l'angolo diventa troppo importante per l'intersezione).
+        
+        Sol:
+        1) controllo che m<1 o m>1 (sotto o sopra la bisettrice) per stabilire linee circa orizz
+        o verticali. a questo punto so se usare intersezione con x=0 (c) oppure con y=0
+        nota: forse meglio intersecare con x=W/2 e y=H/2
+        
+        2) oppure interseco con retta ortogonale(coef anf = -1/m) alla linea mediana (numpy su linee)
+        che passa per il centro (x=W/2 e y=H/2). Sicuramente il piu' affidabile, ma rognoso forse
+        """
+        
         self._sortLinesByRho()
+        
+        #debug show
         output_lines(image, self._h, (0,255,0))
         cv2.imshow("clustered lines", image)
         cv2.waitKey(0)
     
+        # vars of the previous line for the loop so that can be compared to the current one
         m_old = None
         c_old = None
-        
+        prev_line = None
+    
         for rho, theta in self._h:
             # P0 punto proiezione da origine a retta
             x0 = np.cos(theta)*rho
@@ -123,48 +146,35 @@ class ChessLines():
             # P1 punto casuale calcolato a partire da P0
             x1 = int(x0 + 1000 * (-np.sin(theta)))
             y1 = int(y0 + 1000 * (np.cos(theta)))
+            
             # P2 punto casuale calcolato a partire da P0
             x2 = int(x0 - 1000 * (-np.sin(theta)))
             y2 = int(y0 - 1000 * (np.cos(theta)))
-            
-            # x = [x0, x1]
-            # y = [y0, y1]
-
-            # # Calculate the coefficients. This line answers the initial question. 
-            # coefficients = np.polyfit(x, y, 1)
             
             """ y = mx + c """
             m = float(y2 - y1) / (x2 - x1)
             c = (y2 - (m * x2))
             coefficients = [m, c]
             
-            
-            print(f"line: {(rho, theta)}")
+            #debug stuff
+            print(f"\nline: {(rho, theta)}")
             print(f"points: {(x0, y0)} ; {x1,y1}")
             print(f"coefficients: {coefficients}")
             if c_old is not None:
-                print(f"distance with previous point in x=0: {np.absolute(c_old - c)}\n")
-            """
-            problema: con la differenza dei c (intersetta con x=0), ho differenze molto buone con
-            linee orizzontali vere, ma non con linee verticali o quasi (si incontreranno in una C 
-            vicina tutte e l'angolo diventa troppo importante per l'intersezione).
+                print(f"distance with previous point in x=0: {np.absolute(c_old - c)}")
+            if prev_line is not None:
+                print(f"distance with previous line: {_line_distance(rho, theta, prev_line[0], prev_line[1])}")
             
-            Sol:
-            1) controllo che m<1 o m>1 (sotto o sopra la bisettrice) per stabilire linee circa orizz
-            o verticali. a questo punto so se usare intersezione con x=0 (c) oppure con y=0
-            nota: forse meglio intersecare con x=W/2 e y=H/2
-            
-            2) oppure interseco con retta ortogonale(coef anf = -1/m) alla linea mediana (numpy su linee)
-            che passa per il centro (x=W/2 e y=H/2). Sicuramente il piu' affidabile, ma rognoso forse
-            """
-            
-            if(image):
+            # debug show what line is being analysed
+            if(image is not None):
                 cv2.line(image,(x1,y1),(x2,y2),(255,0,0),2)
                 cv2.imshow(f"{(rho, theta)}", image)
                 cv2.waitKey(0)
             
+            # remember as next previous line
             m_old = m
             c_old = c
+            prev_line = [rho, theta]
             
             
         return self._h, self._v
@@ -176,3 +186,17 @@ class ChessLines():
         clusteringH = skcluster.AgglomerativeClustering(
             distance_threshold=(self.lines[:,1].mean(axis=1))) \
                 .fit(self._h[:,0].reshape(-1,1))
+
+
+def _line_distance(rho1, theta1, rho2, theta2):
+    # Convert polar equations to Cartesian equations
+    x1, y1 = rho1 * np.cos(theta1), rho1 * np.sin(theta1)
+    x2, y2 = rho2 * np.cos(theta2), rho2 * np.sin(theta2)
+
+    # Calculate coefficients of line 1
+    A1, B1, C1 = y1 - y2, x2 - x1, x1 * y2 - x2 * y1
+
+    # Calculate distance between line 1 and line 2
+    d = np.absolute((A1 * x2 + B1 * y2 + C1) / np.sqrt(A1**2 + B1**2))
+
+    return d
