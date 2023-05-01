@@ -44,8 +44,15 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
 
     # Hough line detection
     lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
+    chessLines = ChessLines(lines)
     
-    chessLines = ChessLines(lines, cluster_type = "KmeansLines")
+    imgcopy = img.copy()
+    if verbose_show:
+        output_lines(imgcopy, chessLines.lines, (0,0,255))
+        cv2.imshow("lines", imgcopy)
+        cv2.waitKey(0)
+    
+    
     
     # Horizontal and Vertical lines
     
@@ -60,10 +67,6 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     hLinesCLustered = hLines
     vLinesCLustered = vLines
     
-    # clustering linee con kmeans
-    #chessLines.cluster('KmeansLines')
-    # hLinesCLustered = chessLines.getHLinesClustered
-    # vLinesCLustered = chessLines.getVLinesClustered
     
     # clustering linee manuale
     w, h = img.shape[0] , img.shape[1]
@@ -71,13 +74,16 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     hLinesCLustered = chessLines.getHLinesClustered()
     vLinesCLustered = chessLines.getVLinesClustered()
     
-
-    imgcopy = img.copy()
-    output_lines(imgcopy, hLinesCLustered, (0,0,255))
-    output_lines(imgcopy, vLinesCLustered, (0,255,0))
-    #cv2.imshow("clustered lines", imgcopy)
-    #cv2.waitKey(0)
+        
+    # linee clustered
+    if verbose_show:
+        imgcopy = img.copy()
+        output_lines(imgcopy, hLinesCLustered , (0,0,255))
+        output_lines(imgcopy, vLinesCLustered, (0,255,0))
+        cv2.imshow("clustered lines", imgcopy)
+        cv2.waitKey(0)
     
+    # not clustered
     # create output of the hough lines found (not clustered) onto the img
     if verbose_output:
         output_lines(img, hLines , (0,0,255))
@@ -87,10 +93,24 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
         cv2.imwrite(output, img)
     
     # calcolo intersezioni
-    #points = intersections(h, v)
-
+    points = intersections(hLines, vLines)
+    if verbose_show:
+        for point in points:
+            x, y = (point[0], point[1])
+            cv2.circle(img, (int(x),int(y)), radius=2, color=(255, 0, 0), thickness=2)
+        cv2.imshow("points", img)
+        cv2.waitKey(0)
+    
     # Cluster intersection points
-    #points = cluster(points)
+    if True:
+        avg_dist = np.abs(np.min(chessLines._v[:,2]) - np.max(chessLines._v[:,2]))/55
+        points = cluster(points, max_dist=avg_dist)
+        for point in points:
+            x, y = (point[0], point[1])
+            cv2.circle(img, (int(x),int(y)), radius=2, color=(0, 0, 255), thickness=2)
+        cv2.imshow("clustered points", img)
+        cv2.waitKey(0)
+    
     
     # Find corners
     #img_shape = np.shape(img)
@@ -109,7 +129,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
 
 
 def main():
-    input_imgs = glob.glob('./martin/input/*')
+    input_imgs = glob.glob('./martin/input/**')
     print(input_imgs)
 
     for input_img in input_imgs:
@@ -119,7 +139,7 @@ def main():
         print(f"file found: {input_img}")
         imgname = input_img.split('\\')[-1]
     
-        find_board(input_img, f"{'output_' + imgname}",verbose_show=False ,verbose_output=True)
+        find_board(input_img, f"{'output_' + imgname}",verbose_show=False, verbose_output=False)
         #cv2.imwrite('crop.jpg', find_board('./martin/input/1.jpg', '1'))
 
 

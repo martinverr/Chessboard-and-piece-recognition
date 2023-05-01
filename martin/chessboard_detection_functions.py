@@ -108,16 +108,17 @@ def four_point_transform(img, points, square_length=SQUARE_SIDE_LENGTH):
 
 
 def output_lines(img, lines, color):
-        for rho, theta in lines:
-            a = np.cos(theta)
-            b = np.sin(theta)
-            x0 = a*rho
-            y0 = b*rho
-            x1 = int(x0 + 4000*(-b))
-            y1 = int(y0 + 4000*(a))
-            x2 = int(x0 - 4000*(-b))
-            y2 = int(y0 - 4000*(a))
-            cv2.line(img,(x1,y1),(x2,y2),color,2)
+    for line in lines:
+        rho, theta = line[0], line[1]
+        a = np.cos(theta)
+        b = np.sin(theta)
+        x0 = a*rho
+        y0 = b*rho
+        x1 = int(x0 + 4000*(-b))
+        y1 = int(y0 + 4000*(a))
+        x2 = int(x0 - 4000*(-b))
+        y2 = int(y0 - 4000*(a))
+        cv2.line(img,(x1,y1),(x2,y2),color,2)
 
 def split_board(img):
     """

@@ -109,10 +109,15 @@ class ChessLines():
 
     def _manualClustering(self, image=None, w=800, h=800, verbose=False):
         
-        self._h = self._addInterceptionsToLines(self._h)
-        self._v = self._addInterceptionsToLines(self._v)
+        mh, self._h = self._addInterceptionsToLines(self._h, image=image, w=w, h=h, verbose=verbose)
+        mv, self._v = self._addInterceptionsToLines(self._v, image=image, w=w, h=h, verbose=verbose)
         
-        # TODO: understand which line are real horizontal and vertical by m angular coef
+        
+        # horizontal have m of vertical, wrong, so swap
+        if np.abs(mh) > np.abs(mv):
+            tmp = self._v
+            self._v = self._h
+            self._h = tmp
         
         # TODO: sort horizontal lines with _sortLinesByIntersectionOnAxisY()
         # TODO: sort vertical lines with _sortLinesByIntersectionOnAxisX()
@@ -157,6 +162,7 @@ class ChessLines():
         # vars of the previous line for the loop so that can be compared to the current one
         m_old = None
         c_old = None
+        m_sum = 0
         prev_line = None
         prev_intersectionX = None
         intersections = np.ndarray(shape=(1,2), dtype=np.float32)
@@ -175,7 +181,11 @@ class ChessLines():
             y2 = int(y0 - 1000 * (np.cos(theta)))
             
             """ y = mx + c """
-            m = float(y2 - y1) / (x2 - x1)
+            #TODO find a better solution for division by zero 
+            if x2-x1 != 0:
+                m = float(y2 - y1) / (x2 - x1)
+            else:
+                m = 20000
             c = (y2 - (m * x2))
             coefficients = [m, c]
             intersectionX = line_intersection(m, c, 0, w)[0]
@@ -200,11 +210,14 @@ class ChessLines():
             
             # remember as next previous line
             m_old = m
+            m_sum += m
             c_old = c
             prev_line = [rho, theta]
             prev_intersectionX = intersectionX
         
-        return np.append(lines, intersections[1:], axis=1)
+        
+        m = m_sum / lines.shape[0]
+        return m, np.append(lines, intersections[1:], axis=1)
         
         #TODO return m angular coef, mean or last (shoulb be good enough)
 
