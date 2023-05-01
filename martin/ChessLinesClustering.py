@@ -109,8 +109,8 @@ class ChessLines():
 
     def _manualClustering(self, image=None, w=800, h=800, verbose=False):
         
-        m_h = self._addInterceptionsToLines(self._h)
-        m_w = self._addInterceptionsToLines(self._v)
+        self._h = self._addInterceptionsToLines(self._h)
+        self._v = self._addInterceptionsToLines(self._v)
         
         # TODO: understand which line are real horizontal and vertical by m angular coef
         
@@ -204,7 +204,7 @@ class ChessLines():
             prev_line = [rho, theta]
             prev_intersectionX = intersectionX
         
-        self._v = np.append(self._v, intersections[1:], axis=1)
+        return np.append(lines, intersections[1:], axis=1)
         
         #TODO return m angular coef, mean or last (shoulb be good enough)
 
