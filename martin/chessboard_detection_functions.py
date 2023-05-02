@@ -4,6 +4,7 @@ import scipy.cluster as clstr
 from collections import defaultdict
 from functools import partial
 import cv2
+import operator
 
 SQUARE_SIDE_LENGTH = 227
 
@@ -74,37 +75,47 @@ def closest_point(points, loc):
     dists = np.array(list(map(partial(spatial.distance.euclidean(points, loc)), points)))
     return points[dists.argmin()]
 
-def find_corners(points, img_dim):
+def find_corners(points, mh):
     """
     Given a list of points, returns a list containing the four corner points.
     """
-    center_point = closest_point(points, (img_dim[0] / 2, img_dim[1] / 2))
-    points.remove(center_point)
-    center_adjacent_point = closest_point(points, center_point)
-    points.append(center_point)
-    grid_dist = spatial.distance.euclidean(np.array(center_point), np.array(center_adjacent_point))
-    
-    img_corners = [(0, 0), (0, img_dim[1]), img_dim, (img_dim[0], 0)]
-    board_corners = []
-    tolerance = 0.25 # bigger = more tolerance
-    for img_corner in img_corners:
-        while True:
-            cand_board_corner = closest_point(points, img_corner)
-            points.remove(cand_board_corner)
-            cand_board_corner_adjacent = closest_point(points, cand_board_corner)
-            corner_grid_dist = spatial.distance.euclidean(np.array(cand_board_corner), np.array(cand_board_corner_adjacent))
-            if corner_grid_dist > (1 - tolerance) * grid_dist and corner_grid_dist < (1 + tolerance) * grid_dist:
-                points.append(cand_board_corner)
-                board_corners.append(cand_board_corner)
-                break
-    return board_corners
+    points = [x for x in points if (x[0] >= 0 and x[1] >= 0)] #remove points with x or y <0
+    if np.abs(mh) > 0.1:
+        #scacchiera obliqua
+        if mh > 0.1:
+            bottom_right, _ = max(enumerate([pt[1] for pt in points]), key=operator.itemgetter(1))
+            top_left, _ = min(enumerate([pt[1] for pt in points]), key=operator.itemgetter(1))
+            bottom_left, _ = min(enumerate([pt[0] for pt in points]), key=operator.itemgetter(1))
+            top_right, _ = max(enumerate([pt[0] for pt in points]), key=operator.itemgetter(1))
+            corners = [points[top_left], points[top_right], points[bottom_left], points[bottom_right]]
+        
+        else: # mh < 0.1
+            bottom_right, _ = max(enumerate([pt[0] for pt in points]), key=operator.itemgetter(1))
+            top_left, _ = min(enumerate([pt[0] for pt in points]), key=operator.itemgetter(1))
+            bottom_left, _ = max(enumerate([pt[1] for pt in points]), key=operator.itemgetter(1))
+            top_right, _ = min(enumerate([pt[1] for pt in points]), key=operator.itemgetter(1))
+            corners = [points[top_left], points[top_right], points[bottom_left], points[bottom_right]]
 
-def four_point_transform(img, points, square_length=SQUARE_SIDE_LENGTH):
-    board_length = square_length * 8
+    else: 
+        #scacchiera dritta
+        # Bottom-right point has the largest (x + y) value
+        # Top-left has point smallest (x + y) value
+        # Bottom-left point has smallest (x - y) value
+        # Top-right point has largest (x - y) value
+
+        points = [x for x in points if (x[0] >= 0 and x[1] >= 0)] #remove points with x or y <0
+        bottom_right, _ = max(enumerate([pt[0] + pt[1] for pt in points]), key=operator.itemgetter(1))
+        top_left, _ = min(enumerate([pt[0] + pt[1] for pt in points]), key=operator.itemgetter(1))
+        bottom_left, _ = min(enumerate([pt[0] - pt[1] for pt in points]), key=operator.itemgetter(1))
+        top_right, _ = max(enumerate([pt[0] - pt[1] for pt in points]), key=operator.itemgetter(1))
+        corners = [points[top_left], points[top_right], points[bottom_left], points[bottom_right]]
+    return corners
+
+def four_point_transform(img, points, dim_wrap_img):
     pts1 = np.float32(points)
-    pts2 = np.float32([[0, 0], [0, board_length], [board_length, board_length], [board_length, 0]])
-    M = cv2.getPerspectiveTransform(pts1, pts2)
-    return cv2.warpPerspective(img, M, (board_length, board_length))
+    pts2 = np.float32([[0, 0], [dim_wrap_img[0], 0], [0, dim_wrap_img[1]], [dim_wrap_img[0], dim_wrap_img[1]]])
+    matrix = cv2.getPerspectiveTransform(pts1, pts2)
+    return cv2.warpPerspective(img, matrix, (dim_wrap_img[0], dim_wrap_img[1]))
 
 
 def output_lines(img, lines, color):
