@@ -42,7 +42,7 @@ class ChessLines():
             self.cluster()
     
 
-    def cluster(self, cluster_type=None, img=None, w=800, h=800):
+    def cluster(self, cluster_type=None, img=None, W=800, H=800):
         """ Update cluster_type of the class if given
         
         Cluster lines if cluster_type is specified
@@ -65,7 +65,7 @@ class ChessLines():
         if self.cluster_type == 'KmeansLines':
             self._h_clustered, self._v_clustered = self._KmeansLines()
         elif self.cluster_type == 'manual':
-            self._h_clustered, self._v_clustered = self._manualClustering(img, w=w, h=h)
+            self._h_clustered, self._v_clustered = self._manualClustering(img, W=W, H=H)
 
         
     def getHLines(self):
@@ -107,10 +107,10 @@ class ChessLines():
         return hClusteredLines, vClusteredLines
 
 
-    def _manualClustering(self, image=None, w=800, h=800, verbose=False):
+    def _manualClustering(self, image=None, W=800, H=800, verbose=False):
         
-        mh, self._h = self._addInterceptionsToLines(self._h, image=image, w=w, h=h, verbose=verbose)
-        mv, self._v = self._addInterceptionsToLines(self._v, image=image, w=w, h=h, verbose=verbose)
+        mh, self._h = self._addInterceptionsToLines(self._h, image=image, W=W, H=H, verbose=verbose)
+        mv, self._v = self._addInterceptionsToLines(self._v, image=image, W=W, H=H, verbose=verbose)
         self.mh = mh
         self.mv = mv
         
@@ -130,14 +130,20 @@ class ChessLines():
         
         h_steps = np.abs(self._h[1:, 3] - self._h[:-1, 3])
         h_avg_step = np.sum(h_steps) / self._h.shape[0]
-        
+        verbose=True
         if verbose:
-            output_lines(image, self._v, [0,0,255], verbose=True)
             print("\nIntersezioni linee verticali:")
             print(self._v[:,2])
             print("Steps:")
             print(v_steps)
             print(v_avg_step)
+        
+        if verbose:
+            print("\nIntersezioni linee orizzontali:")
+            print(self._h[:,3])
+            print("Steps:")
+            print(h_steps)
+            print(h_avg_step)
         
         return self._manualClustering_on(self._h, h_avg_step, 3, tolerance=0.7), \
                 self._manualClustering_on(self._v, v_avg_step, 2, tolerance=0.7)
@@ -159,7 +165,7 @@ class ChessLines():
     def _sortVLinesByIntersectionX(self):
         self._v = self._v[self._v[:, 2].argsort()]
     
-    def _addInterceptionsToLines(self, lines, image=None, w=800/2, h=0, verbose=False):
+    def _addInterceptionsToLines(self, lines, image=None, W=800, H=800, verbose=False):
         # in case we are debugging, for visual easyness, try to presort (sort by rho does not work perfectly)
         if verbose:
             self._sortLinesByRho()
@@ -193,9 +199,10 @@ class ChessLines():
                 m = 20000
             c = (y2 - (m * x2))
             coefficients = [m, c]
-            intersectionX = line_intersection(m, c, 0, w)[0]
+            intersectionX = line_intersection(m, c, 0, H/2)[0]
+            intersectionY = m * W/2 + c
             
-            intersections = np.append(intersections, np.ndarray(buffer=np.array([intersectionX, c]), shape=(1,2)), axis=0)
+            intersections = np.append(intersections, np.ndarray(buffer=np.array([intersectionX, intersectionY]), shape=(1,2)), axis=0)
 
             if verbose:
                 print(f"\nline(rho, theta): {(rho, theta)}")
@@ -277,7 +284,7 @@ class ChessLines():
 def line_intersection(m1, c1, m2, c2):
     # Check if lines are parallel
     if m1 == m2:
-        return None
+        raise Exception("intersection between parallel line")
 
     # Compute x- and y-coordinates of intersection point
     x = (c2 - c1) / (m1 - m2)

@@ -70,14 +70,14 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     
     
     # clustering linee manuale
-    w, h = img.shape[0] , img.shape[1]
-    chessLines.cluster('manual', img=img, w=w, h=h)
+    W, H = img.shape[0] , img.shape[1]
+    chessLines.cluster('manual', img=img, W=W, H=H)
     hLinesCLustered = chessLines.getHLinesClustered()
     vLinesCLustered = chessLines.getVLinesClustered()
     
         
     # linee clustered
-    if verbose_show:
+    if True:
         imgcopy = img.copy()
         output_lines(imgcopy, hLinesCLustered , (0,0,255))
         output_lines(imgcopy, vLinesCLustered, (0,255,0))
@@ -105,7 +105,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     # Cluster intersection points
     avg_dist = np.abs(np.min(chessLines._v[:,2]) - np.max(chessLines._v[:,2]))/55
     points = list(cluster(points, max_dist=avg_dist))
-    if True:
+    if verbose_show:
         for point in points:
             x, y = (point[0], point[1])
             cv2.circle(img, (int(x),int(y)), radius=2, color=(0, 0, 255), thickness=2)
@@ -115,7 +115,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     
     # Find corners
     corners = find_corners(points, chessLines.mh)
-    if True:
+    if verbose_show:
         for point in corners:
             x, y = (point[0], point[1])
             cv2.circle(img, (int(x),int(y)), radius=5, color=(0, 255, 0), thickness=2)
