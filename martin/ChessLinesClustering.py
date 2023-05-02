@@ -130,8 +130,9 @@ class ChessLines():
         
         h_steps = np.abs(self._h[1:, 3] - self._h[:-1, 3])
         h_avg_step = np.sum(h_steps) / self._h.shape[0]
-        verbose=True
+        
         if verbose:
+            output_lines(image, self._v, [0,0,255])
             print("\nIntersezioni linee verticali:")
             print(self._v[:,2])
             print("Steps:")
@@ -139,6 +140,7 @@ class ChessLines():
             print(v_avg_step)
         
         if verbose:
+            output_lines(image, self._h, [0,255,0])
             print("\nIntersezioni linee orizzontali:")
             print(self._h[:,3])
             print("Steps:")
