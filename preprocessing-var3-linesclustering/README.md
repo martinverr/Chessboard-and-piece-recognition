@@ -1,7 +1,8 @@
 # Preprocessing Variant `3: Cluster lines and not points`
 
 ## Description
-Classical pipeline where we cluster points from lines not clustered 
+Classical pipeline where we lines to have the correct grid and find the points
+as the simple intersection
 
 ## Pipeline
 - [x] Gray level
