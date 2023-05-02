@@ -57,7 +57,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
 
 
 def main():
-    input_imgs = glob.glob('./martin/input/**')
+    input_imgs = glob.glob('./input/**')
     print(input_imgs)
 
     for input_img in input_imgs:

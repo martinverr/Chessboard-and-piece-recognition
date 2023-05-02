@@ -89,7 +89,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     if verbose_output:
         output_lines(img, hLines , (0,0,255))
         output_lines(img, vLines, (0,255,0))
-        output = f'./martin/output/lines_{output_name}'
+        output = f'./output/lines_{output_name}'
         print(f"created: {output}")
         cv2.imwrite(output, img)
     
@@ -130,7 +130,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     if False:
         for point in points:
             cv2.circle(img, tuple(point), 25, (0,0,255), -1)
-        cv2.imwrite(f'./martin/output/points_{output_name}', img)
+        cv2.imwrite(f'./output/points_{output_name}', img)
     
     # Perspective transform
     new_img = four_point_transform(img_for_wrap, corners, (600, 600))
@@ -141,7 +141,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
 
 
 def main():
-    input_imgs = glob.glob('./martin/input/**')
+    input_imgs = glob.glob('./input/**')
     print(input_imgs)
 
     for input_img in input_imgs:
@@ -152,7 +152,7 @@ def main():
         imgname = input_img.split('\\')[-1]
     
         find_board(input_img, f"{'output_' + imgname}",verbose_show=False, verbose_output=False)
-        #cv2.imwrite('crop.jpg', find_board('./martin/input/1.jpg', '1'))
+        #cv2.imwrite('crop.jpg', find_board('./input/1.jpg', '1'))
 
 
 if __name__ == "__main__":

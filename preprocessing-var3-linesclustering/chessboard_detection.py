@@ -32,16 +32,18 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     hLines = chessLines.getHLines()
     vLines = chessLines.getVLines()
 
-    # No clustering
-    hLinesCLustered = hLines
-    vLinesCLustered = vLines
+    # clustering linee manuale
+    W, H = img.shape[0] , img.shape[1]
+    chessLines.cluster('manual', img=img, W=W, H=H)
+    hLinesCLustered = chessLines.getHLinesClustered()
+    vLinesCLustered = chessLines.getVLinesClustered()
     
-    # not clustered
+    # clustered
     # create output of the hough lines found (not clustered) onto the img
     if verbose_output:
-        output_lines(img, hLines , (0,0,255))
-        output_lines(img, vLines, (0,255,0))
-        output = f'./martin/output/lines_{output_name}'
+        output_lines(img, hLinesCLustered, (0,0,255))
+        output_lines(img, vLinesCLustered, (0,255,0))
+        output = f'./output/lines_{output_name}'
         print(f"created: {output}")
         cv2.imwrite(output, img)
     
@@ -52,16 +54,6 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
             x, y = (point[0], point[1])
             cv2.circle(img, (int(x),int(y)), radius=2, color=(255, 0, 0), thickness=2)
         cv2.imshow("points", img)
-        cv2.waitKey(0)
-    
-    # Cluster intersection points
-    avg_dist = np.abs(np.min(chessLines._v[:,2]) - np.max(chessLines._v[:,2]))/55
-    points = list(cluster(points, max_dist=avg_dist))
-    if verbose_show:
-        for point in points:
-            x, y = (point[0], point[1])
-            cv2.circle(img, (int(x),int(y)), radius=2, color=(0, 0, 255), thickness=2)
-        cv2.imshow("clustered points", img)
         cv2.waitKey(0)
     
     # Find corners
@@ -97,7 +89,7 @@ def main():
         imgname = input_img.split('\\')[-1]
     
         find_board(input_img, f"{'output_' + imgname}",verbose_show=False, verbose_output=False)
-        #cv2.imwrite('crop.jpg', find_board('./martin/input/1.jpg', '1'))
+        #cv2.imwrite('crop.jpg', find_board('./input/1.jpg', '1'))
 
 
 if __name__ == "__main__":
