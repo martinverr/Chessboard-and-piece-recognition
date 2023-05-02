@@ -111,13 +111,17 @@ class ChessLines():
         
         mh, self._h = self._addInterceptionsToLines(self._h, image=image, w=w, h=h, verbose=verbose)
         mv, self._v = self._addInterceptionsToLines(self._v, image=image, w=w, h=h, verbose=verbose)
-        
+        self._mh = mh
+        self._mv = mv
         
         # horizontal have m of vertical, wrong, so swap
         if np.abs(mh) > np.abs(mv):
             tmp = self._v
             self._v = self._h
             self._h = tmp
+            self._mh = mv
+            self._mv = mh
+        
         
         # TODO: sort horizontal lines with _sortLinesByIntersectionOnAxisY()
         # TODO: sort vertical lines with _sortLinesByIntersectionOnAxisX()
