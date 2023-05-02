@@ -122,22 +122,25 @@ class ChessLines():
             self.mh = mv
             self.mv = mh
         
+        self._sortHLinesByIntersectionY()
+        self._sortVLinesByIntersectionX() 
+
+        v_steps = np.abs(self._v[1:, 2] - self._v[:-1, 2])
+        v_avg_step = np.sum(v_steps) / self._v.shape[0]
         
-        # TODO: sort horizontal lines with _sortLinesByIntersectionOnAxisY()
-        # TODO: sort vertical lines with _sortLinesByIntersectionOnAxisX()
+        h_steps = np.abs(self._h[1:, 3] - self._h[:-1, 3])
+        h_avg_step = np.sum(h_steps) / self._h.shape[0]
         
-        # TODO: find the avg_step among clusters of line
-        
-        # TODO: cluster lines when we encounter a new line with a larger step than avg_step
-        
-        
-        #debug show
         if verbose:
-            output_lines(image, self._v, (0,255,0))
-            cv2.imshow("clustered lines", image)
-            cv2.waitKey(0)
+            output_lines(image, self._v, [0,0,255], verbose=True)
+            print("\nIntersezioni linee verticali:")
+            print(self._v[:,2])
+            print("Steps:")
+            print(v_steps)
+            print(v_avg_step)
         
-        return self._h, self._v
+        return self._manualClustering_on(self._h, h_avg_step, 3, tolerance=0.7), \
+                self._manualClustering_on(self._v, v_avg_step, 2, tolerance=0.7)
             
 
     def _agglomerativeCLustering(self):
@@ -150,12 +153,10 @@ class ChessLines():
         self._h = self._h[self._h[:, 0].argsort()]
         self._v = self._v[self._v[:, 0].argsort()]
 
-    def _sortLinesByIntersectionOnAxisX(self):
+    def _sortHLinesByIntersectionY(self):
         self._h = self._h[self._h[:, 3].argsort()]
-        self._v = self._v[self._v[:, 3].argsort()]
 
-    def _sortLinesByIntersectionOnAxisY(self):
-        self._h = self._h[self._h[:, 2].argsort()]
+    def _sortVLinesByIntersectionX(self):
         self._v = self._v[self._v[:, 2].argsort()]
     
     def _addInterceptionsToLines(self, lines, image=None, w=800/2, h=0, verbose=False):
@@ -223,7 +224,53 @@ class ChessLines():
         m = m_sum / lines.shape[0]
         return m, np.append(lines, intersections[1:], axis=1)
         
-        #TODO return m angular coef, mean or last (shoulb be good enough)
+    def _manualClustering_on(self, lines, avg_step, cmpdim, tolerance=0.5, verbose=False, image=None):
+        dividing_step = avg_step * tolerance
+        clustered_lines = np.zeros(shape=(1,4), dtype=np.float64)
+        #np.append(intersections, np.ndarray(buffer=np.array([intersectionX, c]), shape=(1,2)), axis=0)
+        buffer_cluster_lines = np.zeros(shape=(1,4), dtype=np.float64)
+        clusterLine_counter = 0
+        for counter, currLine in enumerate(lines):
+            if counter == 0:
+                buffer_cluster_lines[0] = currLine
+                clusterLine_counter = 1
+                continue
+            
+            if currLine[cmpdim] - lines[counter-1][cmpdim] < dividing_step:
+                if clusterLine_counter == 0:
+                    buffer_cluster_lines[0] = currLine.reshape(1,4)
+                    clusterLine_counter = 1
+                else:
+                    buffer_cluster_lines = np.append(buffer_cluster_lines, currLine.reshape(1,4), axis=0)
+                    clusterLine_counter += 1
+            else:
+                if clusterLine_counter == 0:
+                    clustered_line = currLine.reshape(1,4)
+                    clustered_lines = np.append(clustered_lines, clustered_line, axis = 0)
+                    clusterLine_counter = 0
+                else:
+                    clustered_line = np.mean(buffer_cluster_lines, axis=0, dtype=np.float64).reshape(1,4)
+                    clustered_lines = np.append(clustered_lines, clustered_line, axis = 0)
+                    buffer_cluster_lines = currLine.reshape(1,4)
+                    clusterLine_counter = 1
+                #debug show
+                if verbose:
+                    print(buffer_cluster_lines)
+                    print("sono state clusterizzate in:")
+                    print(clustered_line)
+        
+        if clusterLine_counter == 0:
+            clustered_line = currLine.reshape(1,4)
+        else:
+            clustered_line = np.mean(buffer_cluster_lines, axis=0, dtype=np.float64).reshape(1,4)
+        clustered_lines = np.append(clustered_lines, clustered_line, axis = 0)
+        clustered_lines = clustered_lines[1:]
+        if verbose:
+            output_lines(image, clustered_line, (0,255,0))
+            cv2.imshow(f"clustered lines manual{counter}", image)
+            cv2.waitKey(0)
+        
+        return clustered_lines
 
 
 
