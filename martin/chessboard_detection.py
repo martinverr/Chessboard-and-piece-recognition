@@ -93,8 +93,8 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
         print(f"created: {output}")
         cv2.imwrite(output, img)
     
-    # calcolo intersezioni
-    points = intersections(hLines, vLines)
+    # calcolo intersezioni su linee clusterizzate
+    points = intersections(hLinesCLustered[:,0:2], vLinesCLustered[:,0:2])
     if verbose_show:
         for point in points:
             x, y = (point[0], point[1])
