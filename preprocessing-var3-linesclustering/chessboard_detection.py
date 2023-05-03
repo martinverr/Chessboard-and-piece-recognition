@@ -13,6 +13,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     """
     start = time()
     img = cv2.imread(fname)
+    img = cv2.resize(img, (600, 500), interpolation=cv2.INTER_CUBIC)
     img_for_wrap = np.copy(img)
     assert img is not None
 
@@ -50,16 +51,17 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
         cv2.imwrite(output, img)
     
     # calcolo intersezioni su linee clusterizzate
-    points = intersections(hLinesCLustered[:,0:2], vLinesCLustered[:,0:2])
+    points = intersections(hLinesCLustered[:,0:2], vLinesCLustered[:,0:2]) #remove points with x or y <0
     if verbose_show:
         for point in points:
-            x, y = (point[0], point[1])
-            cv2.circle(img, (int(x),int(y)), radius=2, color=(255, 0, 0), thickness=2)
+            if point[0] >= 0 and point[0] <= H and point[1] >= 0 and point[1] <= W:
+                x, y = (point[0], point[1])
+                cv2.circle(img, (int(x),int(y)), radius=2, color=(255, 0, 0), thickness=2)
         cv2.imshow("points", img)
         cv2.waitKey(0)
     
     # Find corners
-    corners = find_corners(points, chessLines.mh)
+    corners = find_corners(points, chessLines.mh, W, H)
     if verbose_show:
         for point in corners:
             x, y = (point[0], point[1])
@@ -76,8 +78,6 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
         new_img = four_point_transform(img_for_wrap, corners, (600, 600))
         cv2.imshow("crop", new_img)
         cv2.waitKey(0)
-
-
 
 def main():
     input_imgs = glob.glob('./input/**')
