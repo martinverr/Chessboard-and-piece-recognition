@@ -19,6 +19,8 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
         cv2.waitKey(0)
     assert img is not None
 
+    W, H = img.shape[0] , img.shape[1]
+
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if verbose_show:
         cv2.imshow("grey img", gray)
@@ -45,7 +47,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
 
     # Hough line detection
     lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
-    chessLines = ChessLines(lines)
+    chessLines = ChessLines(lines, W, H)
     
     imgcopy = img.copy()
     if verbose_show:

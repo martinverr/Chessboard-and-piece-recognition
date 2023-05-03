@@ -16,6 +16,8 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     img_for_wrap = np.copy(img)
     assert img is not None
 
+    W, H = img.shape[0] , img.shape[1]
+
     # Prepare a grey blurred img
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.blur(gray, (3, 3))
@@ -26,7 +28,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
 
     # Hough line detection
     lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
-    chessLines = ChessLines(lines)
+    chessLines = ChessLines(lines, W, H)
     
     # metodo kmeans su rho
     hLines = chessLines.getHLines()
