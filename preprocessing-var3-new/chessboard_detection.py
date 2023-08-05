@@ -22,11 +22,14 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     # Canny
     edges = cv2.Canny(gray, 70, 400, apertureSize=3)
 
-    # Hough line detection
+    # Hough line std detection
     lines1 = cv2.HoughLines(edges, 1, np.pi/180, threshold=95)
     lines1 = np.reshape(lines1, (-1, 2))
-    lines2 = cv2.HoughLinesP(edges, 1, np.pi/180, 75, minLineLength=30, maxLineGap=50)
+    
+    # Hough line prob detection
+    lines2 = cv2.HoughLinesP(edges, 1, np.pi/180, 80, minLineLength=30, maxLineGap=50)
     lines2 = np.reshape(lines2, (-1, 4))
+    lines2 = np.array([two_points_to_polar(line) for line in lines2])
     
     chessLines = ChessLines(lines1)
     

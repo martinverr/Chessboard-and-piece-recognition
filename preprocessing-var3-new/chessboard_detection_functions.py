@@ -173,10 +173,54 @@ def removeOutLiers(lines):
         angles_degree = np.append(angles_degree, np.ndarray(buffer=np.array(angle_degree, dtype=np.double), shape=(1,1)), axis=0)
     
     
-    #mean_m = m_sum / lines.shape[0]
     mean_m = np.mean(angles_degree[1:])
     std = np.std(angles_degree[1:])
     
     removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5 * std).reshape(-1)]
     filtered_lines = lines[(~(np.abs(angles_degree[1:] - mean_m) > 2.5 * std).reshape(-1))]
     return filtered_lines, removed_lines
+
+
+def abc_line_eq_coeffs(line):
+    x1, y1, x2, y2 = line
+
+    direction_vector = np.array([x2 - x1, y2 - y1])
+    normal_vector = np.array([-direction_vector[1], direction_vector[0]])
+    
+    # Calculate the coefficients [a, b, c] of the line equation ax+by+c
+    a = normal_vector[0]
+    b = normal_vector[1]
+    c = -a * x1 - b * y1
+    return a,b,c
+
+
+def projection_point_from_origin(line):
+    a, b, c = abc_line_eq_coeffs(line)
+    
+    length_squared = a**2 + b**2
+    # Calculate the distance d from the origin to the line
+    d = c / np.sqrt(length_squared)
+    
+    # Calculate the coordinates of the projection point
+    proj_x = -a * d / np.sqrt(length_squared)
+    proj_y = -b * d / np.sqrt(length_squared)
+
+    return proj_x, proj_y
+
+
+def two_points_to_polar(line):
+    # Get points from the vector
+    x1, y1, x2, y2 = line
+
+    # If the line is vertical, set theta to 0 and rho to the x-coordinate of the vertical line
+    if x1 == x2:
+        rho = x1
+        theta = 0
+    else:
+        proj_x, proj_y = projection_point_from_origin(line)
+
+        # Calculate the polar coordinates of the projection point
+        rho = np.sqrt(proj_x**2 + proj_y**2)
+        theta = np.arctan2(proj_y, proj_x)
+
+    return np.array([rho, theta])
