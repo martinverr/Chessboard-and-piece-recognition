@@ -23,7 +23,7 @@ class ChessLines():
     # horizontal, vertical, all ChessLines
     _h, _v, all, cluster_type = None, None, None, None
 
-    def __init__(self, lines, cluster_type=None):
+    def __init__(self, lines, W, H, cluster_type=None):
         
         self.lines = np.reshape(lines, (-1, 2))
         
@@ -37,6 +37,19 @@ class ChessLines():
         self._h = self.lines[angleClustering.labels_==0]
         self._v = self.lines[angleClustering.labels_==1]
         self.cluster_type = cluster_type
+
+        mh, self._h = self._addInterceptionsToLines(self._h, W=W, H=H)
+        mv, self._v = self._addInterceptionsToLines(self._v, W=W, H=H)
+        self.mh = mh
+        self.mv = mv
+        
+        # horizontal have m of vertical, wrong, so swap
+        if np.abs(mh) > np.abs(mv):
+            tmp = self._v
+            self._v = self._h
+            self._h = tmp
+            self.mh = mv
+            self.mv = mh
 
         if cluster_type is not None:
             self.cluster()
@@ -108,19 +121,6 @@ class ChessLines():
 
 
     def _manualClustering(self, image=None, W=800, H=800, verbose=False):
-        
-        mh, self._h = self._addInterceptionsToLines(self._h, image=image, W=W, H=H, verbose=verbose)
-        mv, self._v = self._addInterceptionsToLines(self._v, image=image, W=W, H=H, verbose=verbose)
-        self.mh = mh
-        self.mv = mv
-        
-        # horizontal have m of vertical, wrong, so swap
-        if np.abs(mh) > np.abs(mv):
-            tmp = self._v
-            self._v = self._h
-            self._h = tmp
-            self.mh = mv
-            self.mv = mh
         
         self._sortHLinesByIntersectionY()
         self._sortVLinesByIntersectionX() 

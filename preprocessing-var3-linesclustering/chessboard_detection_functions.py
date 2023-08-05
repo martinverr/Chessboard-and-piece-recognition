@@ -75,11 +75,11 @@ def closest_point(points, loc):
     dists = np.array(list(map(partial(spatial.distance.euclidean(points, loc)), points)))
     return points[dists.argmin()]
 
-def find_corners(points, mh):
+def find_corners(points, mh, W, H):
     """
     Given a list of points, returns a list containing the four corner points.
     """
-    points = [x for x in points if (x[0] >= 0 and x[1] >= 0)] #remove points with x or y <0
+    #points = [x for x in points if x[0] >= 0 and x[0] <= H and x[1] >= 0 and x[1] <= W] #remove points with x or y <0
     if np.abs(mh) > 0.1:
         #scacchiera obliqua
         if mh > 0.1:
