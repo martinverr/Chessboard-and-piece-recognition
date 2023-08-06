@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn import cluster as skcluster
+from sklearn.cluster import DBSCAN
 import cv2
 from chessboard_detection_functions import output_lines
 
@@ -70,7 +71,11 @@ class ChessLines():
                 'KmeansLines' : cluster lines with k-means, centroids as rho and theta;
                 care that the no. of group of lines must be 9 x 9
 
-                'manual' : no ML algorithms involved (TODO has to be implemented) 
+                'manual' : no ML algorithms involved (has to be implemented) 
+
+                'DBSCAN' : cluster lines with DBSCAN, dimension considered to evaluate distance
+                are 2-3, so hSteps and vSteps (see _addInterceptionsToLines)
+
         """
             
         if cluster_type is not None:
@@ -79,6 +84,8 @@ class ChessLines():
             self._h_clustered, self._v_clustered = self._KmeansLines()
         elif self.cluster_type == 'manual':
             self._h_clustered, self._v_clustered = self._manualClustering(img, W=W, H=H)
+        elif self.cluster_type == 'DBSCAN':
+            self._h_clustered, self._v_clustered = self._DBSCANLines()
 
         
     def getHLines(self):
@@ -87,12 +94,38 @@ class ChessLines():
     def getVLines(self):
         return self._v
 
+    def setHLines(self, hLines):
+        self._h = hLines
+    
+    def setVLines(self, vLines):
+        self._v = vLines
+
     def getHLinesClustered(self):
         return self._h_clustered
     
     def getVLinesClustered(self):
         return self._v_clustered
     
+
+    def _DBSCANLines(self):
+        clusteringH = skcluster.DBSCAN(eps=15, min_samples=1).fit(self._h[:,3].reshape(-1,1))
+        clusteringV = skcluster.DBSCAN(eps=15, min_samples=1).fit(self._v[:,2].reshape(-1,1))
+
+        hClusteredLines = np.empty((0,4), dtype=np.float64)
+        vClusteredLines = np.empty((0,4), dtype=np.float64)
+
+        for c in np.sort(np.unique(clusteringH.labels_)):
+            hc_cluster_line = self._h[clusteringH.labels_ == c] #tutte le linee del cluster c
+            hClusteredLines = np.append(hClusteredLines, np.mean(hc_cluster_line, axis=0).reshape((1,4)), axis=0)
+
+        for c in np.sort(np.unique(clusteringV.labels_)):
+            vc_cluster_line = self._v[clusteringV.labels_ == c] #tutte le linee del cluster c
+            vClusteredLines = np.append(vClusteredLines, np.mean(vc_cluster_line, axis=0).reshape((1,4)), axis=0)
+
+        print(f"from {self._h.shape[0]} to {vClusteredLines.shape[0]}")
+        print(f"from {self._v.shape[0]} to {hClusteredLines.shape[0]}")
+        return hClusteredLines, vClusteredLines
+
 
     def _KmeansLines(self):
         distanceClusteringH = skcluster.KMeans(n_clusters=9).fit(self._h[:,0].reshape(-1,1))

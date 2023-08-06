@@ -14,46 +14,65 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     start = time()
     img = cv2.imread(fname)
     img_for_wrap = np.copy(img)
-    if verbose_show:
+    if False:
         cv2.imshow("img", img)
         cv2.waitKey(0)
     assert img is not None
 
-    W, H = img.shape[0] , img.shape[1]
-
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if verbose_show:
+    if False:
         cv2.imshow("grey img", gray)
         cv2.waitKey(0)
 
-    gray = cv2.blur(gray, (3, 3)) # TODO auto adjust the size of the blur
-    if verbose_show:
-        cv2.imshow("blurred grey img", gray)
-        cv2.waitKey(0)
+    #gray = cv2.blur(gray, (3, 3)) # TODO auto adjust the size of the blur
+    #if verbose_show:
+    #    cv2.imshow("blurred grey img", gray)
+    #    cv2.waitKey(0)
 
     # Canny edge detection
 
     # prova di iperparametro sigma 
-    #for delta_sigma in range(10):    
-    #    sigma = 0.09+0.03*delta_sigma
+   #for delta_sigma in range(10):    
+    #    sigma = 0.04+0.03*delta_sigma
+    #    edges = auto_canny(gray, sigma=sigma)
     #    print(f"canny sigma: {sigma}")
-
-    sigma=0.20
-    edges = auto_canny(gray, sigma=sigma)    
-    if verbose_show:
+    #    if verbose_show:
+    #        cv2.imshow(f"cannied {sigma}", edges)
+    #        cv2.waitKey(0)
+    #sigma=0.10
+    #edges = auto_canny(gray, sigma=sigma, verbose=True)
+    
+    edges = cv2.Canny(gray, 70, 400, apertureSize=3)
+    if False:
         cv2.imshow(f"cannied {sigma}", edges)
         cv2.waitKey(0)
     #assert np.count_nonzero(edges) / float(gray.shape[0] * gray.shape[1]) < 0.015
 
-    # Hough line detection
-    lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
-    chessLines = ChessLines(lines, W, H)
+    # Hough line std detection
+    lines1 = cv2.HoughLines(edges, 1, np.pi/180, threshold=90)
+    lines1 = np.reshape(lines1, (-1, 2))
+    
+    # Hough line prob detection
+    lines2 = cv2.HoughLinesP(edges, 1, np.pi/180, 75, minLineLength=30, maxLineGap=50)
+    lines2 = np.reshape(lines2, (-1, 4))
+    lines2 = np.array([two_points_to_polar(line) for line in lines2])
     
     imgcopy = img.copy()
-    if verbose_show:
-        output_lines(imgcopy, chessLines.lines, (0,0,255))
-        cv2.imshow("lines", imgcopy)
+    imgcopy2 = img.copy() 
+    if False:
+        output_lines(imgcopy, lines1, (0,0,255))
+        cv2.imshow("lines standard", imgcopy)
         cv2.waitKey(0)
+    
+    if True:
+        output_lines(imgcopy2, lines2, (0,255,0))
+        cv2.imshow("lines prob", imgcopy2)
+        cv2.waitKey(0)
+    
+    
+    W, H = img.shape[0] , img.shape[1]
+    chessLines = ChessLines(lines2, W, H)
+    
     
     
     
@@ -66,14 +85,26 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     hLines = chessLines.getHLines()
     vLines = chessLines.getVLines()
 
-    # No clustering
-    hLinesCLustered = hLines
-    vLinesCLustered = vLines
+    hLines, hLinesRemoved = removeOutLiers(hLines)
+    vLines, vLinesRemoved = removeOutLiers(vLines)
+    chessLines.setHLines(hLines)
+    chessLines.setVLines(vLines)
     
+    imgcopy = img.copy()
+    if False:
+        output_lines(imgcopy, hLines, (0,0,255))
+        output_lines(imgcopy, vLines, (0,0,255))
+        output_lines(imgcopy, hLinesRemoved, (0,255,0))
+        output_lines(imgcopy, vLinesRemoved, (0,255,0))
+        cv2.imshow("lines standard con eliminazione outliers", imgcopy)
+        cv2.waitKey(0)
+
+    # No clustering
+    #hLinesCLustered = hLines
+    #vLinesCLustered = vLines
     
     # clustering linee manuale
-    W, H = img.shape[0] , img.shape[1]
-    chessLines.cluster('manual', img=img, W=W, H=H)
+    chessLines.cluster('DBSCAN')
     hLinesCLustered = chessLines.getHLinesClustered()
     vLinesCLustered = chessLines.getVLinesClustered()
     
@@ -85,7 +116,8 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
         output_lines(imgcopy, vLinesCLustered, (0,255,0))
         cv2.imshow("clustered lines", imgcopy)
         cv2.waitKey(0)
-    
+
+    """
     # not clustered
     # create output of the hough lines found (not clustered) onto the img
     if verbose_output:
@@ -138,7 +170,7 @@ def find_board(fname, output_name, verbose_show=False, verbose_output=False):
     new_img = four_point_transform(img_for_wrap, corners, (600, 600))
     cv2.imshow("crop", new_img)
     cv2.waitKey(0)
-    
+    """
 
 
 
@@ -153,7 +185,7 @@ def main():
         print(f"file found: {input_img}")
         imgname = input_img.split('\\')[-1]
     
-        find_board(input_img, f"{'output_' + imgname}",verbose_show=False, verbose_output=False)
+        find_board(input_img, f"{'output_' + imgname}",verbose_show=True, verbose_output=False)
         #cv2.imwrite('crop.jpg', find_board('./input/1.jpg', '1'))
 
 

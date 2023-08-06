@@ -15,11 +15,13 @@ def auto_canny(image, sigma=0.33, verbose=False):
     """
     # compute the median of the single channel pixel intensities
     v = np.median(image)
- 
+    if verbose:
+        print("median:", v)
     # apply automatic Canny edge detection using the computed median
     upper = int(min(255, (1.0 + sigma) * v))
-    lower = upper/3
-    edged = cv2.Canny(image, lower, upper)
+    lower = int(max(0, (1.0 - 2*sigma) * v))
+    
+    edged = cv2.Canny(image, lower, upper, 3)
     if verbose:
         print(f"canny upper thr:{upper}, lower thr:{lower}")
  
@@ -143,3 +145,87 @@ def split_board(img):
         for j in range(8):
             arr.append(img[i * sq_len : (i + 1) * sq_len, j * sq_len : (j + 1) * sq_len])
     return arr
+
+
+def removeOutLiers(lines):
+    angles_degree = np.ndarray(shape=(1,1), dtype=np.double)
+    
+    for line in lines:
+        rho, theta = line[:2]
+        # P0 punto proiezione da origine a retta
+        x0 = np.cos(theta)*rho
+        y0 = np.sin(theta)*rho
+        
+        # P1 punto casuale calcolato a partire da P0
+        x1 = int(x0 + 1000 * (-np.sin(theta)))
+        y1 = int(y0 + 1000 * (np.cos(theta)))
+        
+        # P2 punto casuale calcolato a partire da P0
+        x2 = int(x0 - 1000 * (-np.sin(theta)))
+        y2 = int(y0 - 1000 * (np.cos(theta)))
+        
+        """ y = mx + c """
+        #TODO find a better solution for division by zero
+        if x2-x1 != 0:
+            m = float(y2 - y1) / (x2 - x1)
+        else:
+            m = 20000
+        
+        angle_degree = np.abs(np.degrees(np.arctan(m)))
+        angles_degree = np.append(angles_degree, np.ndarray(buffer=np.array(angle_degree, dtype=np.double), shape=(1,1)), axis=0)
+    
+    
+    #mean_m = m_sum / lines.shape[0]
+    mean_m = np.mean(angles_degree[1:])
+    std = np.std(angles_degree[1:])
+    
+    removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5 * std).reshape(-1)]
+    filtered_lines = lines[(~(np.abs(angles_degree[1:] - mean_m) > 2.5 * std).reshape(-1))]
+    return filtered_lines, removed_lines
+
+def abc_line_eq_coeffs(line):
+    x1, y1, x2, y2 = line
+
+    direction_vector = np.array([x2 - x1, y2 - y1])
+    normal_vector = np.array([-direction_vector[1], direction_vector[0]])
+    
+    # Calculate the coefficients [a, b, c] of the line equation ax+by+c
+    a = normal_vector[0]
+    b = normal_vector[1]
+    c = -a * x1 - b * y1
+    return a,b,c
+
+
+def projection_point_from_origin(line):
+    a, b, c = abc_line_eq_coeffs(line)
+    
+    length_squared = a**2 + b**2
+    # Calculate the distance d from the origin to the line
+    d = c / np.sqrt(length_squared)
+    
+    # Calculate the coordinates of the projection point
+    proj_x = -a * d / np.sqrt(length_squared)
+    proj_y = -b * d / np.sqrt(length_squared)
+
+    return proj_x, proj_y
+
+def two_points_to_polar(line):
+    # Get points from the vector
+    x1, y1, x2, y2 = line
+
+    # If the line is vertical, set theta to 0 and rho to the x-coordinate of the vertical line
+    if x1 == x2:
+        rho = x1
+        theta = 0
+    else:
+        proj_x, proj_y = projection_point_from_origin(line)
+
+        # Calculate the polar coordinates of the projection point
+        rho = np.sqrt(proj_x**2 + proj_y**2)
+        theta = np.arctan2(proj_y, proj_x)
+
+    #print(f"points: {(x1, y1)} and {(x2,y2)}")
+    #print(f"projection equation: {a:.1f}x + {b:.1f}y + {c:.1f}")
+    #print(f"projection point: {(proj_x, proj_y)}")
+    #print(f"rho: {rho:.2f}, theta: {np.degrees(theta)}")
+    return np.array([rho, theta])
