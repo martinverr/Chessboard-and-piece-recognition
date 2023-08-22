@@ -229,3 +229,44 @@ def two_points_to_polar(line):
     #print(f"projection point: {(proj_x, proj_y)}")
     #print(f"rho: {rho:.2f}, theta: {np.degrees(theta)}")
     return np.array([rho, theta])
+
+def sortLinesByDim(lines, dim):
+    return lines[lines[:, dim].argsort()]
+
+def warpingSection(chessLines):
+    hLines = chessLines.getHLinesClustered()
+    vLines = chessLines.getVLinesClustered()
+
+    # Trovo il poligono da warpare
+    delimiterLines =  np.empty((0,4), dtype=np.float64)
+    delimiterLines = np.append(delimiterLines, sortLinesByDim(hLines, 3)[0].reshape((1,4)), axis=0) # top
+    delimiterLines = np.append(delimiterLines, sortLinesByDim(hLines, 3)[-1].reshape((1,4)), axis=0) # bottom
+    delimiterLines = np.append(delimiterLines, sortLinesByDim(vLines, 2)[0].reshape((1,4)), axis=0) # left
+    delimiterLines = np.append(delimiterLines, sortLinesByDim(vLines, 2)[-1].reshape((1,4)), axis=0) # right
+
+
+    # top, bottom, left, right margins:
+    margins = [-70, 0, -50, 50]
+    if np.abs(chessLines.mh) < 0.2:
+        margins[2] = 0
+        margins[3] = 0
+    else: 
+        if chessLines.mh < -0.2:
+            margins[3] = 0
+        if chessLines.mh > 0.2:
+            margins[2] = 0
+    
+    #withMargin =  np.empty((0,4), dtype=np.float64)
+    for i in range(4):
+        if margins[i] != 0:
+            # inplace delimiterLines
+            delimiterLines[0] += [margins[i],0,0,0]
+            
+            # save in withMargin, delimiterLines untouched
+            #newMarginLine = np.copy(delimiterLines[i] + [margins[i],0,0,0])
+            #withMargin = np.append(withMargin, newMarginLine.reshape((1,4)), axis=0)
+    
+    warpSectionCorners = intersections(delimiterLines[:2,0:2], delimiterLines[2:,0:2])
+    return warpSectionCorners
+
+    

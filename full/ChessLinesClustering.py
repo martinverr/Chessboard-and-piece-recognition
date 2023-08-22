@@ -122,8 +122,8 @@ class ChessLines():
             vc_cluster_line = self._v[clusteringV.labels_ == c] #tutte le linee del cluster c
             vClusteredLines = np.append(vClusteredLines, np.mean(vc_cluster_line, axis=0).reshape((1,4)), axis=0)
 
-        print(f"from {self._h.shape[0]} to {vClusteredLines.shape[0]}")
-        print(f"from {self._v.shape[0]} to {hClusteredLines.shape[0]}")
+        #print(f"from {self._h.shape[0]} to {vClusteredLines.shape[0]}")
+        #print(f"from {self._v.shape[0]} to {hClusteredLines.shape[0]}")
         return hClusteredLines, vClusteredLines
 
 
