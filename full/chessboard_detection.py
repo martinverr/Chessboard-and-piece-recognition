@@ -171,14 +171,66 @@ def grid_detection(img, verbose_show=False):
                         (100,150), 
                         cv2.FONT_HERSHEY_SIMPLEX, 1,
                         (0,0,255), 2)
+        for line in hLinesCLustered:
+            cv2.putText(imgcopy,
+                        f"{line[3]}",
+                        (300,int(line[3])-5), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                        (255,0,0), 2)
+        for line in vLinesCLustered:
+            cv2.putText(imgcopy,
+                        f"{int(line[2])}",
+                        (int(line[2]), 350),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (0,0,255), 2)
         cv2.imshow("grid_detection: clustered lines", imgcopy)
         cv2.waitKey(0)
+    
+    hLinesCLustered = sortLinesByDim(hLinesCLustered, 3)
+    vLinesCLustered = sortLinesByDim(vLinesCLustered, 2)
+    
+    
+    #TODO: inserire eliminazione bordi qui
+
+    points = intersections(hLinesCLustered[:,0:2], vLinesCLustered[:,0:2])
+    
+    if verbose_show:
+        imgcopy = img.copy()
+        for i, point in enumerate(points):
+            x, y = (point[0], point[1])
+            cv2.circle(imgcopy, (int(x),int(y)), radius=2, color=(255, 0, 0), thickness=2)
+            cv2.putText(imgcopy,
+                        f"{i}",
+                        (int(x)+4,int(y)-4), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0,0,255), 2)
+        cv2.imshow("points", imgcopy)
+        cv2.waitKey(0)
+
+
+    # works only if 9x9 lines are found
+    squares = {}
+    square_counter = 0
+    for r in np.arange(8):
+        for c in np.arange(8):
+            
+            square_counter += 1
+            letter = chr(ord('a') + c)
+            number = 8 - r
+
+            print(f"square {square_counter} ({letter}{number}) has corner: {r*9+c}, {r*9+c+1}, {(r+1)*9+c}, {(r+1)*9+c+1}")
+            if len(points) >= (r+1)*9+c+1:
+                squares[f"{letter}{number}"] = [points[r*9+c],
+                                                points[r*9+c+1], 
+                                                points[(r+1)*9+c], 
+                                                points[(r+1)*9+c+1]]
+
 
 
 
 def main():
     #195
-    input_imgs = glob.glob('./input/*19*')
+    input_imgs = glob.glob('./input/*195*')
     print(input_imgs)
 
     for input_img in input_imgs:
