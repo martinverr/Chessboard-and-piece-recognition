@@ -116,7 +116,7 @@ def grid_detection(img, verbose_show=False):
     assert img is not None
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 65, 350, apertureSize=3)
-    if verbose_show:
+    if False:
         cv2.imshow(f"grid_detection: cannied", edges)
         cv2.waitKey(0)
     
@@ -126,7 +126,7 @@ def grid_detection(img, verbose_show=False):
     lines = np.array([two_points_to_polar(line) for line in lines])
     
     imgcopy = img.copy()
-    if verbose_show:
+    if False:
         output_lines(imgcopy, lines, (0,255,0))
         cv2.imshow("grid_detection: lines prob", imgcopy)
         cv2.waitKey(0)
@@ -186,13 +186,20 @@ def grid_detection(img, verbose_show=False):
         cv2.imshow("grid_detection: clustered lines", imgcopy)
         cv2.waitKey(0)
     
-    hLinesCLustered = sortLinesByDim(hLinesCLustered, 3)
-    vLinesCLustered = sortLinesByDim(vLinesCLustered, 2)
     
     
-    #TODO: inserire eliminazione bordi qui
+    # eliminazione bordi e aggiunta linee mancanti
+    hLinesFinal, vLinesFinal = line_control(img, hLinesCLustered, vLinesCLustered, verbose=verbose_show)
 
-    points = intersections(hLinesCLustered[:,0:2], vLinesCLustered[:,0:2])
+    # abort if lines are less than expected
+    if len(hLinesFinal) < 9 or len(vLines) < 9:
+            print("Not enough lines found, provide a better image")
+            return None
+        
+    # Trova i punti in ordine
+    hLinesFinal = sortLinesByDim(hLinesFinal, 3)
+    vLinesFinal = sortLinesByDim(vLinesFinal, 2)
+    points = intersections(hLinesFinal[:,0:2], vLinesFinal[:,0:2])
     
     if verbose_show:
         imgcopy = img.copy()
@@ -218,10 +225,10 @@ def grid_detection(img, verbose_show=False):
             letter = chr(ord('a') + c)
             number = 8 - r
 
-            print(f"square {square_counter} ({letter}{number}) has corner: {r*9+c}, {r*9+c+1}, {(r+1)*9+c}, {(r+1)*9+c+1}")
-            if len(points) >= (r+1)*9+c+1:
+            #print(f"square {square_counter} ({letter}{number}) has corner: {r*9+c}, {r*9+c+1}, {(r+1)*9+c}, {(r+1)*9+c+1}")
+            if len(points) > (r+1)*9+c+1:
                 squares[f"{letter}{number}"] = [points[r*9+c],
-                                                points[r*9+c+1], 
+                                                points[r*9 +c+1], 
                                                 points[(r+1)*9+c], 
                                                 points[(r+1)*9+c+1]]
 
@@ -230,7 +237,7 @@ def grid_detection(img, verbose_show=False):
 
 def main():
     #195
-    input_imgs = glob.glob('./input/*195*')
+    input_imgs = glob.glob('./input/**')
     print(input_imgs)
 
     for input_img in input_imgs:

@@ -6,16 +6,23 @@ Started with classical pipeline for grid detection
 ## Pipeline
 - [x] Gray level
 - [ ] Blur 3x3
+
+### First pass
 - [x] Canny ***1**
 - [ ] Hough Standard (rho and theta version)
 - [x] Hough Probabilistic (2 points version) ***2**
 - [x] Clean lines outliers
 - [x] Cluster lines: DBSCAN ***3**
-- [x] Lines intersection
-- [ ] Cluster points ***4**
 - [x] find 4 corners
 - [x] geometric tran1sformations
-- [ ] extract 64(8x8) sub-img  
+### Second pass
+- [x] Canny
+- [x] Hough Probabilistic (2 points version)
+- [x] Clean lines outliers
+- [x] Cluster lines: DBSCAN
+- [x] Remove outliers: borders, Add missing lines
+- [x] Find points by Lines intersection ***4**
+- [x] Extract 64(8x8) squares sub-img
 
 ## Comments and notes
 > ****1***

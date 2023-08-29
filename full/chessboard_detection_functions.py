@@ -270,3 +270,86 @@ def warpingSection(chessLines):
     return warpSectionCorners
 
     
+def analyze_diff(diff, mean, threshold_two_tiles = 0.1):
+    index_line_eliminate = np.array([])
+    index_line_to_add = np.array([])
+    for index, d in enumerate(diff):
+        if d < 3/4 * mean:
+            if index in [0, len(diff) - 1]:
+                index_line_eliminate = np.append(index_line_eliminate, index)
+        elif d > 2*mean * (1 - threshold_two_tiles):
+            index_line_to_add = np.append(index_line_to_add, index)
+            if index not in [0, len(diff) - 1]:
+                #due tiles insieme - condizione in mezzo alla scacchiera
+                pass
+            else:
+                #due tiles insieme - ai bordi della scacchiera
+                pass
+        '''elif mean + mean / 4 <= d <= 2 * mean - 2 * mean * threshold_two_tiles: #else
+            if index in [0, len(diff) - 1]:
+                index_line_to_add = np.append(index_line_to_add, index)
+                index_line_eliminate = np.append(index_line_eliminate, index+1)
+                print("si tratta di un tile + bordo. index: "+ str(index))
+        '''
+    return index_line_eliminate, index_line_to_add
+
+
+def process_lines(eliminate, add, lines, mean, dim, axes):
+    o_lines = lines
+    if axes not in [2,3]:
+        print("errore di input su quale valore fare le operazioni nell'array delle line")
+        return
+
+    for e in eliminate:
+        if e == 0:
+            o_lines = np.delete(o_lines, int(e), axis=0)
+        if e == lines.shape[0] - 2:
+            o_lines = np.delete(o_lines, o_lines.shape[0] - 1, axis=0)
+
+    for a in add:
+        axis2, axis3 = lines[int(a), 2], lines[int(a), 3]
+        if axes == 2:
+            dim_x = lines[int(a), axes] + mean
+            dim_y = 0
+            dim_x_two = lines[int(a), axes] + mean
+            dim_y_two = dim/2
+            axis2 += mean
+        if axes == 3:
+            dim_x = 0
+            dim_y = lines[int(a), axes]+ mean
+            dim_x_two = dim/2
+            dim_y_two = lines[int(a), axes]+ mean
+            axis3 += mean
+        temp_line = np.array([dim_x, dim_y, dim_x_two, dim_y_two])
+        rho, theta = two_points_to_polar(temp_line)
+        o_lines = np.append(o_lines, [[rho, theta, axis2, axis3]], axis=0)
+
+    return o_lines
+
+
+def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_plus_edge = 0.1, verbose = False):
+    img_copy =img.copy()
+    W,H = img_copy.shape[0],img_copy.shape[1]
+    hlines = sortLinesByDim(hlines,3)
+    vlines = sortLinesByDim(vlines,2)
+
+    hdim = hlines[:,3]
+    vdim = vlines[:,2]
+    h_diff = np.diff(hdim)
+    v_diff = np.diff(vdim)
+    h_mean = np.mean(h_diff)
+    v_mean = np.mean(v_diff)
+    
+    h_eliminate, h_add = analyze_diff(h_diff, h_mean)
+    v_eliminate, v_add = analyze_diff(v_diff,v_mean)
+
+    hlines = process_lines(eliminate= h_eliminate, add=h_add, lines=hlines, mean=h_mean, dim=H, axes=3)
+    vlines = process_lines(eliminate= v_eliminate, add=v_add, lines=vlines, mean=v_mean, dim=W, axes=2)
+    if verbose:
+        output_lines(img_copy, hlines, (255,0,0))
+        output_lines(img_copy, vlines, (0,255,0))
+        
+        cv2.imshow("grid_detection: lines after line_control", img_copy)
+        cv2.waitKey(0)
+    return hlines, vlines
+
