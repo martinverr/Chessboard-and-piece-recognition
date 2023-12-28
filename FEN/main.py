@@ -86,16 +86,18 @@ if True:
     for fen_notation in fen_notations_test:
         print("####### fen_to_dict #######")
         chess_board = FEN.fen_to_dict(fen_notation)
-        print(fen_notation + "parsed to:\n" + str(chess_board))
+        print(fen_notation + " parsed to:\n" + str(chess_board))
 
         print("\n####### dict_to_fen #######")
         fen_notation_output = FEN.dict_to_fen(chess_board)
-        print(fen_notation + "parsed and refened to: " + fen_notation_output)
-        print(fen_notation.split(' ')[0] == fen_notation_output + "\n")
+        print(fen_notation + " parsed and refened to: " + fen_notation_output)
+        print(fen_notation.split(' ')[0] == fen_notation_output)
+        print()
 
 
 #Test JSON
-if False:
+if True:
     filename = "0002"
+    print("image " + filename + " position:")
     print(FEN(filename).fen)
     print(FEN(filename).pieces)
