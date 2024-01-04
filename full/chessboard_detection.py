@@ -115,7 +115,7 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
     return new_img
 
 
-def grid_detection(img, verbose_show=False):
+def grid_detection(img, viewpoint, verbose_show=False):
     assert img is not None
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 65, 350, apertureSize=3)
@@ -230,10 +230,19 @@ def grid_detection(img, verbose_show=False):
 
             #print(f"square {square_counter} ({letter}{number}) has corner: {r*9+c}, {r*9+c+1}, {(r+1)*9+c}, {(r+1)*9+c+1}")
             if len(points) > (r+1)*9+c+1:
+                if viewpoint == "black":
+                    letter = chr(ord('h') - (ord(letter) - ord('a')))
+                    number = 8 - number + 1
                 squares[f"{letter}{number}"] = [points[r*9+c],
-                                                points[r*9 +c+1], 
+                                                points[r*9 +c+1],
                                                 points[(r+1)*9+c], 
                                                 points[(r+1)*9+c+1]]
+                
+                if verbose_show:
+                    print(f"{letter}{number}")
+                    cv2.imshow(f"{letter},{number}", four_point_transform(img, squares[f"{letter}{number}"], (700//8, 800//8)))
+                    cv2.waitKey(0)
+                
 
 
 def classify():
@@ -263,12 +272,13 @@ def main():
             continue
 
 
-        grid_detection(warpedBoardImg,
-                       verbose_show=False)
-        
         predicted_pos = classify()
         truth = FEN(os.path.splitext(input_img)[0])
         true_fen, true_pos, viewpoint = truth.fen, truth.pieces, truth.view
+        
+        grid_detection(warpedBoardImg,
+                       viewpoint,
+                       verbose_show=True)
         
         #debug lettura json
         if True:
