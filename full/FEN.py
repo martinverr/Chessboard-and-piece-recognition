@@ -73,31 +73,3 @@ class FEN:
                     fen += '/'
 
         return fen
-
-
-# Tests FEN
-if True:
-    fen_notations_test = (
-        "8/8/8/4p1K1/2k1P3/8/8/8 b - - 0 1",
-    #    "r1bk3r/p2pBpNp/n4n2/1p1NP2P/6P1/3P4/P1P1K3/q5b1",
-    #    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
-    )
-
-    for fen_notation in fen_notations_test:
-        print("####### fen_to_dict #######")
-        chess_board = FEN.fen_to_dict(fen_notation)
-        print(fen_notation + " parsed to:\n" + str(chess_board))
-
-        print("\n####### dict_to_fen #######")
-        fen_notation_output = FEN.dict_to_fen(chess_board)
-        print(fen_notation + " parsed and refened to: " + fen_notation_output)
-        print(fen_notation.split(' ')[0] == fen_notation_output)
-        print()
-
-
-#Test JSON
-if True:
-    filename = "0002"
-    print("image " + filename + " position:")
-    print(FEN(filename).fen)
-    print(FEN(filename).pieces)

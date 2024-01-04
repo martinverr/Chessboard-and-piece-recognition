@@ -5,6 +5,7 @@ import os, glob
 
 from ChessLinesClustering import ChessLines
 from chessboard_detection_functions import *
+from FEN import FEN
 
 
 def board_detection(fname, output_name, verbose_show=False, verbose_output=False):
@@ -233,6 +234,8 @@ def grid_detection(img, verbose_show=False):
                                                 points[(r+1)*9+c+1]]
 
 
+def classify():
+    return {}
 
 
 def main():
@@ -243,7 +246,10 @@ def main():
     for input_img in input_imgs:
         if not os.path.isfile(input_img):
             continue
-
+        
+        if not input_img.lower().endswith(".png"):
+            continue
+        
         print(f"file found: {input_img}")
         imgname = input_img.split('\\')[-1]
     
@@ -254,8 +260,12 @@ def main():
         if warpedBoardImg is None:
             continue
 
+
         grid_detection(warpedBoardImg,
-                       verbose_show=True)
+                       verbose_show=False)
+        
+        predicted_pos = classify()
+        true_pos = FEN(os.path.splitext(input_img)[0]).pieces
 
 
 if __name__ == "__main__":
