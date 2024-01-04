@@ -3,17 +3,23 @@ import json
 class FEN:
     fen = ''
     pieces = None
-
+    
     def __init__(self, filename):
         self.filename = filename
-        self.fen = self.readFENfromFile()
+        self.fen, white_view = self._parseJSON()
         self.pieces = FEN.fen_to_dict(self.fen)
-
+        
+        if white_view:
+            self.view = "white"
+        else:
+            self.view = "black"
     
-    def readFENfromFile(self):
+    
+    
+    def _parseJSON(self):
         with open(self.filename + ".json", 'r') as jsonfile:
             jsondata = json.load(jsonfile)
-        return jsondata['fen']
+        return jsondata['fen'], jsondata['white_turn']
 
 
     @staticmethod

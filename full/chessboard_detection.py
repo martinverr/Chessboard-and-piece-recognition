@@ -7,6 +7,8 @@ from ChessLinesClustering import ChessLines
 from chessboard_detection_functions import *
 from FEN import FEN
 
+import warnings
+warnings.filterwarnings("ignore")
 
 def board_detection(fname, output_name, verbose_show=False, verbose_output=False):
     """
@@ -265,7 +267,14 @@ def main():
                        verbose_show=False)
         
         predicted_pos = classify()
-        true_pos = FEN(os.path.splitext(input_img)[0]).pieces
+        truth = FEN(os.path.splitext(input_img)[0])
+        true_fen, true_pos, viewpoint = truth.fen, truth.pieces, truth.view
+        
+        #debug lettura json
+        if True:
+            print("\n##### DEBUG JSON START ######\n")
+            print(f"FEN: {true_fen}\n\nPieces Position: {true_pos}\n\nViewpoint: {viewpoint}")
+            print("\n##### DEBUG JSON END ######\n")
 
 
 if __name__ == "__main__":
