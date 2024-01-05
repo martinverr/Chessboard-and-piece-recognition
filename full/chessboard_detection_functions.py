@@ -353,3 +353,37 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
         cv2.waitKey(0)
     return hlines, vlines
 
+
+# works only if 9x9 lines are found
+def extract_squares(img, points, viewpoint):
+    squares = {}
+    square_counter = 0
+    for r in np.arange(8):
+        for c in np.arange(8):
+            
+            square_counter += 1
+            letter = chr(ord('a') + c)
+            number = 8 - r
+
+            if viewpoint == "black":
+                    letter = chr(ord('h') - (ord(letter) - ord('a')))
+                    number = 8 - number + 1
+                    
+            #print(f"square {square_counter} ({letter}{number}) has corner: {r*9+c}, {r*9+c+1}, {(r+1)*9+c}, {(r+1)*9+c+1}")
+            if len(points) > (r+1)*9+c+1:
+                
+                polypoints = np.array([points[r*9+c],
+                                       points[r*9 +c+1], 
+                                       points[(r+1)*9+c], 
+                                       points[(r+1)*9+c+1]], np.int32)
+                
+                # metodo 1
+                x, y, w, h = cv2.boundingRect(polypoints)
+                sub_image = img[y:y+h, x:x+w]#.copy()
+                
+                #metodo 2
+                #sub_image = four_point_transform(img, polypoints, (80, 80))
+                
+                squares[f"{letter}{number}"] = sub_image
+
+    return squares

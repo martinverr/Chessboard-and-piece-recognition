@@ -119,7 +119,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
     assert img is not None
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 65, 350, apertureSize=3)
-    if False:
+    if verbose_show:
         cv2.imshow(f"grid_detection: cannied", edges)
         cv2.waitKey(0)
     
@@ -129,7 +129,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
     lines = np.array([two_points_to_polar(line) for line in lines])
     
     imgcopy = img.copy()
-    if False:
+    if verbose_show:
         output_lines(imgcopy, lines, (0,255,0))
         cv2.imshow("grid_detection: lines prob", imgcopy)
         cv2.waitKey(0)
@@ -204,7 +204,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
     vLinesFinal = sortLinesByDim(vLinesFinal, 2)
     points = intersections(hLinesFinal[:,0:2], vLinesFinal[:,0:2])
     
-    if verbose_show:
+    if True:
         imgcopy = img.copy()
         for i, point in enumerate(points):
             x, y = (point[0], point[1])
@@ -218,30 +218,24 @@ def grid_detection(img, viewpoint, verbose_show=False):
         cv2.waitKey(0)
 
 
-    # works only if 9x9 lines are found
-    squares = {}
-    square_counter = 0
-    for r in np.arange(8):
-        for c in np.arange(8):
-            
-            square_counter += 1
-            letter = chr(ord('a') + c)
-            number = 8 - r
-
-            #print(f"square {square_counter} ({letter}{number}) has corner: {r*9+c}, {r*9+c+1}, {(r+1)*9+c}, {(r+1)*9+c+1}")
-            if len(points) > (r+1)*9+c+1:
-                if viewpoint == "black":
-                    letter = chr(ord('h') - (ord(letter) - ord('a')))
-                    number = 8 - number + 1
-                squares[f"{letter}{number}"] = [points[r*9+c],
-                                                points[r*9 +c+1],
-                                                points[(r+1)*9+c], 
-                                                points[(r+1)*9+c+1]]
+    # Squares Extraction
+    squares = extract_squares(img, points, viewpoint)
+    if True:
+        for squarename, squareimg in squares.items():
+            cv2.namedWindow(f'Square', cv2.WINDOW_NORMAL)  # Use WINDOW_NORMAL to allow resizing
+            cv2.resizeWindow(f'Square', 200, 200)
+            squareimg2 = squareimg.copy()
+            cv2.putText(squareimg2,
+                        squarename,
+                        (0, 25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0,0,255), 1)
+            cv2.imshow(f'Square', squareimg2)
+            cv2.waitKey(0)
+    
+    return squares
                 
-                if verbose_show:
-                    print(f"{letter}{number}")
-                    cv2.imshow(f"{letter},{number}", four_point_transform(img, squares[f"{letter}{number}"], (700//8, 800//8)))
-                    cv2.waitKey(0)
+
                 
 
 
@@ -278,10 +272,10 @@ def main():
         
         grid_detection(warpedBoardImg,
                        viewpoint,
-                       verbose_show=True)
+                       verbose_show=False)
         
         #debug lettura json
-        if True:
+        if False:
             print("\n##### DEBUG JSON START ######\n")
             print(f"FEN: {true_fen}\n\nPieces Position: {true_pos}\n\nViewpoint: {viewpoint}")
             print("\n##### DEBUG JSON END ######\n")
