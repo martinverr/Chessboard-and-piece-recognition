@@ -1,11 +1,9 @@
 import numpy as np
 from time import time
 import cv2
-import os, glob
 
 from ChessLinesClustering import ChessLines
 from chessboard_detection_functions import *
-from FEN import FEN
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -220,7 +218,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
 
     # Squares Extraction
     squares = extract_squares(img, points, viewpoint)
-    if True:
+    if verbose_show:
         for squarename, squareimg in squares.items():
             cv2.namedWindow(f'Square', cv2.WINDOW_NORMAL)  # Use WINDOW_NORMAL to allow resizing
             cv2.resizeWindow(f'Square', 200, 200)
@@ -234,52 +232,3 @@ def grid_detection(img, viewpoint, verbose_show=False):
             cv2.waitKey(0)
     
     return squares
-                
-
-                
-
-
-def classify():
-    return {}
-
-
-def main():
-    #195
-    input_imgs = glob.glob('./input/**')
-    print(input_imgs)
-
-    for input_img in input_imgs:
-        if not os.path.isfile(input_img):
-            continue
-        
-        if not input_img.lower().endswith(".png"):
-            continue
-        
-        print(f"file found: {input_img}")
-        imgname = input_img.split('\\')[-1]
-    
-        warpedBoardImg = board_detection(input_img, 
-                                         f"{'output_' + imgname}",
-                                         verbose_show=False, 
-                                         verbose_output=False)
-        if warpedBoardImg is None:
-            continue
-
-
-        predicted_pos = classify()
-        truth = FEN(os.path.splitext(input_img)[0])
-        true_fen, true_pos, viewpoint = truth.fen, truth.pieces, truth.view
-        
-        grid_detection(warpedBoardImg,
-                       viewpoint,
-                       verbose_show=False)
-        
-        #debug lettura json
-        if False:
-            print("\n##### DEBUG JSON START ######\n")
-            print(f"FEN: {true_fen}\n\nPieces Position: {true_pos}\n\nViewpoint: {viewpoint}")
-            print("\n##### DEBUG JSON END ######\n")
-
-
-if __name__ == "__main__":
-    main()

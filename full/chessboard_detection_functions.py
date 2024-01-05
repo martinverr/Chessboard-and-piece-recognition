@@ -362,11 +362,11 @@ def extract_squares(img, points, viewpoint):
         for c in np.arange(8):
             
             square_counter += 1
-            letter = chr(ord('a') + c)
+            letter = chr(ord('A') + c)
             number = 8 - r
 
             if viewpoint == "black":
-                    letter = chr(ord('h') - (ord(letter) - ord('a')))
+                    letter = chr(ord('H') - (ord(letter) - ord('A')))
                     number = 8 - number + 1
                     
             #print(f"square {square_counter} ({letter}{number}) has corner: {r*9+c}, {r*9+c+1}, {(r+1)*9+c}, {(r+1)*9+c+1}")
