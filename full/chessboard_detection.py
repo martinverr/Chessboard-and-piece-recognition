@@ -202,7 +202,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
     vLinesFinal = sortLinesByDim(vLinesFinal, 2)
     points = intersections(hLinesFinal[:,0:2], vLinesFinal[:,0:2])
     
-    if True:
+    if verbose_show:
         imgcopy = img.copy()
         for i, point in enumerate(points):
             x, y = (point[0], point[1])
