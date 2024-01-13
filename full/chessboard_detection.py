@@ -5,8 +5,8 @@ import cv2
 from ChessLinesClustering import ChessLines
 from chessboard_detection_functions import *
 
-from ChessLinesClustering import ChessLines
-from chessboard_detection_functions import *
+import warnings
+warnings.filterwarnings("ignore")
 
 def board_detection(fname, output_name, verbose_show=False, verbose_output=False):
     """
