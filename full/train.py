@@ -8,7 +8,7 @@ def classify():
 
 
 def main():
-    input_imgs = glob.glob('./input/**')
+    input_imgs = glob.glob('./input/**0000**')
     print(input_imgs)
 
     for input_img in input_imgs:
@@ -48,17 +48,22 @@ def main():
         if grid_squares is None:
             continue
 
-        chessboard_data = np.array([
-            np.array([square_coord, square_img, true_pos[square_coord]]) if square_coord in true_pos
-            else np.array([square_coord, square_img, 'empty']) 
-            for square_coord, square_img in grid_squares.items()
-                           ])
-        # (64, 3): 64 squares of [coord, img, piece]
-        # example: 
-        #   0: ['h1', array([...], uint8), 'empty']
-        #   1: ['g1', array([...], uint8), 'b_Rook']
         
-        print('obtained data for training')
+        # Extend the information to include piece information in 3rd col (image remain last in 4th col)
+        grid_squares = np.column_stack((grid_squares[:,:2], 
+                                         [true_pos.get(coord, 'empty') for coord in grid_squares[:, 1]],
+                                         grid_squares[:,-1]
+                                         ))
+        """
+        numpy.ndarray(64, 4):
+        64 squares of [square num, coord, piece, img]
+        example: 
+            0: [0, 'h1', 'empty', array([...], uint8)]
+            1: [1, 'g1', 'b_Rook', array([...], uint8)]
+            ...
+            63: [63, 'a8', 'w_Rook', array([...], uint8)]
+        """
+        print(f'obtained data for training')
         predicted_pos = classify()
         
 

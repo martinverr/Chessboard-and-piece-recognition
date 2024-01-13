@@ -356,8 +356,31 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
 
 # works only if 9x9 lines are found
 def extract_squares(img, points, viewpoint):
-    squares = {}
+    """
+    Extract individual squares from a chessboard image.
+
+    Parameters
+    ----------
+    img: numpy.ndarray
+        The input chessboard image.
+    points: list
+        List of corner points defining the chessboard.
+    viewpoint: str
+        The viewpoint of the chessboard ("white" or "black").
+
+    Returns:
+    --------
+    squares_info: numpy.ndarray
+        An array(64,3) containing information for each square:
+        [
+            square_counter: int [1...64]
+            square coords: str ('A1', ..., 'H8')
+            sub_image: numpy.ndarray, img of the square
+        ]
+    """
+    squares_info = np.empty((64, 3), dtype=object)
     square_counter = 0
+    
     for r in np.arange(8):
         for c in np.arange(8):
             
@@ -384,6 +407,6 @@ def extract_squares(img, points, viewpoint):
                 #metodo 2
                 #sub_image = four_point_transform(img, polypoints, (80, 80))
                 
-                squares[f"{letter}{number}"] = sub_image
-
-    return squares
+                square_info = np.array([square_counter, f"{letter}{number}", sub_image], dtype=object)
+                squares_info[square_counter - 1] = square_info
+    return squares_info
