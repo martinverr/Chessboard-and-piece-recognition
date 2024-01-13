@@ -113,6 +113,32 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
     return new_img
 
 
+"""
+    It is assumed that the first pass has been done, and therefore the input image has been warped.
+    
+    A second preprocessing pass is performed for better lines, and then the function reconstructs
+     the grid returning a data structure of the 64 squares to be passed to the neural networks.
+
+    Parameters
+    ----------
+    img: numpy.ndarray
+        The input chessboard image warped (oriented and transformed with the 1st pass)
+    viewpoint: str {"white"|"black"}
+        Viepoint of the player, the bottom part of the chessboard reserved to white/black
+    verbose_show: bool
+        Verbose cv.show of various step for debug/demonstration purpose
+
+    Returns:
+    --------
+    squares_info: numpy.ndarray
+        An array(64,4) containing information for each square:
+        [
+            square_counter: int [1...64]
+            square coords: str ('A1', ..., 'H8')
+            square_image: numpy.ndarray, img of the square
+            bbox_image: numpy.ndarray, img of the piece i
+        ]
+"""
 def grid_detection(img, viewpoint, verbose_show=False):
     assert img is not None
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -218,17 +244,39 @@ def grid_detection(img, viewpoint, verbose_show=False):
 
     # Squares Extraction
     squares = extract_squares(img, points, viewpoint)
+
+
+    # Debug bbox, NOTE: call extract_squares(..., debug_mode=True) !
     if verbose_show:
-        for squarename, squareimg in squares.items():
-            cv2.namedWindow(f'Square', cv2.WINDOW_NORMAL)  # Use WINDOW_NORMAL to allow resizing
-            cv2.resizeWindow(f'Square', 200, 200)
+        for _, _, points, bbox_points in squares:
+            imgcopy = img.copy()
+            points = points.reshape((1, 4, 2))
+            bbox_points = bbox_points.reshape((1, 4, 2))
+            cv2.polylines(imgcopy, [points[0][[0,1,3,2]]], isClosed=True, color=(0,200,0), thickness=2)
+            color = tuple(np.random.randint(0, 256, 3).tolist())  # Random color
+            cv2.polylines(imgcopy, [bbox_points[0][[0,1,3,2]]], isClosed=True, color=(0,255,0), thickness=2)
+            
+            cv2.imshow(f'Bbox', imgcopy)
+            cv2.waitKey(0)
+   
+    if verbose_show:
+        for square_coord, squareimg, bboximg in squares[:, 1:]:
             squareimg2 = squareimg.copy()
             cv2.putText(squareimg2,
-                        squarename,
+                        square_coord,
                         (0, 25),
                         cv2.FONT_HERSHEY_SIMPLEX, 1,
                         (0,0,255), 1)
             cv2.imshow(f'Square', squareimg2)
+            cv2.waitKey(0)
+
+            bboximg2 = bboximg.copy()
+            cv2.putText(squareimg2,
+                        square_coord,
+                        (0, 25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0,0,255), 1)
+            cv2.imshow(f'Square', bboximg2)
             cv2.waitKey(0)
     
     return squares

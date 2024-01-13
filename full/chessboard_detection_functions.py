@@ -355,7 +355,7 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
 
 
 # works only if 9x9 lines are found
-def extract_squares(img, points, viewpoint):
+def extract_squares(img, points, viewpoint, debug_mode=False):
     """
     Extract individual squares from a chessboard image.
 
@@ -371,16 +371,19 @@ def extract_squares(img, points, viewpoint):
     Returns:
     --------
     squares_info: numpy.ndarray
-        An array(64,3) containing information for each square:
+        An array(64,4) containing information for each square:
         [
             square_counter: int [1...64]
             square coords: str ('A1', ..., 'H8')
-            sub_image: numpy.ndarray, img of the square
+            square_image: numpy.ndarray, img of the square
+            bbox_image: numpy.ndarray, img of the piece i
         ]
     """
-    squares_info = np.empty((64, 3), dtype=object)
+    squares_info = np.empty((64, 4), dtype=object)
     square_counter = 0
-    
+    avg_lenght = 80
+    sigma = 4
+
     for r in np.arange(8):
         for c in np.arange(8):
             
@@ -402,11 +405,27 @@ def extract_squares(img, points, viewpoint):
                 
                 # metodo 1
                 x, y, w, h = cv2.boundingRect(polypoints)
-                sub_image = img[y:y+h, x:x+w]#.copy()
+                square_image = img[y:y+h, x:x+w].copy()
                 
-                #metodo 2
-                #sub_image = four_point_transform(img, polypoints, (80, 80))
+                h_correction = (c - 3) * sigma 
+                v_correction = (1 - r/8) * avg_lenght
+                polypoints_bbox = polypoints.copy()
+                if h_correction > 0:
+                    polypoints_bbox[[1,3],0] = np.minimum(img.shape[0], polypoints_bbox[[1,3],0] + h_correction)
+                if h_correction < 0:
+                    polypoints_bbox[[0,2],0] = np.maximum(0, polypoints_bbox[[0,2],0] + h_correction)
+                polypoints_bbox[:2,1] = np.maximum(0, polypoints_bbox[:1, 1] - v_correction)
+                x, y, w, h = cv2.boundingRect(polypoints_bbox)
+                bbox_image = img[y:y+h, x:x+w]
                 
-                square_info = np.array([square_counter, f"{letter}{number}", sub_image], dtype=object)
+
+                # metodo 2
+                # OR
+                # sub_image = four_point_transform(img, polypoints, (avg_lenght, avg_lenght))
+                
+                square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image], dtype=object)
+                if debug_mode:
+                    square_info = np.array([square_counter, f"{letter}{number}", polypoints, polypoints_bbox], dtype=object)
+                
                 squares_info[square_counter - 1] = square_info
     return squares_info

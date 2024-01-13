@@ -8,7 +8,7 @@ def classify():
 
 
 def main():
-    input_imgs = glob.glob('./input/**0000**')
+    input_imgs = glob.glob('./input/**')
     print(input_imgs)
 
     for input_img in input_imgs:
@@ -52,7 +52,7 @@ def main():
         # Extend the information to include piece information in 3rd col (image remain last in 4th col)
         grid_squares = np.column_stack((grid_squares[:,:2], 
                                          [true_pos.get(coord, 'empty') for coord in grid_squares[:, 1]],
-                                         grid_squares[:,-1]
+                                         grid_squares[:,-2:]
                                          ))
         """
         numpy.ndarray(64, 4):
