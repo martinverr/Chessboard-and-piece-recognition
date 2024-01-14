@@ -354,6 +354,38 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     return hlines, vlines
 
 
+"""
+Calculate bounding box base on row and column
+
+Notes
+-----
+h_correction =
+    (c - 3) * sigma
+v_correction = 
+    (1 - r/8) * avg_lenght
+    ir**exp_factor + linear_factor*ir + offset_term
+"""
+def calculate_bbox(polypoints, r, c):
+    sigma = 4
+    avg_lenght = 80
+    offset_term = 10
+    linear_factor = 7
+    exp_factor = 2.2
+    ir = 7-r
+
+    h_correction = (c - 3) * sigma 
+    v_correction = np.floor(ir**exp_factor + linear_factor*ir + offset_term)
+
+    polypoints_bbox = polypoints.copy()
+    if h_correction > 0:
+        polypoints_bbox[[1,3],0] = np.minimum(700, polypoints_bbox[[1,3],0] + h_correction)
+    if h_correction < 0:
+        polypoints_bbox[[0,2],0] = np.maximum(0, polypoints_bbox[[0,2],0] + h_correction)
+    polypoints_bbox[:2,1] = np.maximum(0, polypoints_bbox[:1, 1] - v_correction)
+
+    return polypoints_bbox
+
+
 # works only if 9x9 lines are found
 def extract_squares(img, points, viewpoint, debug_mode=False):
     """
@@ -381,12 +413,9 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
     """
     squares_info = np.empty((64, 4), dtype=object)
     square_counter = 0
-    avg_lenght = 80
-    sigma = 4
 
     for r in np.arange(8):
-        for c in np.arange(8):
-            
+        for c in np.arange(8):            
             square_counter += 1
             letter = chr(ord('A') + c)
             number = 8 - r
@@ -403,29 +432,15 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
                                        points[(r+1)*9+c], 
                                        points[(r+1)*9+c+1]], np.int32)
                 
-                # metodo 1
                 x, y, w, h = cv2.boundingRect(polypoints)
                 square_image = img[y:y+h, x:x+w].copy()
                 
-                h_correction = (c - 3) * sigma 
-                v_correction = (1 - r/8) * avg_lenght
-                polypoints_bbox = polypoints.copy()
-                if h_correction > 0:
-                    polypoints_bbox[[1,3],0] = np.minimum(img.shape[0], polypoints_bbox[[1,3],0] + h_correction)
-                if h_correction < 0:
-                    polypoints_bbox[[0,2],0] = np.maximum(0, polypoints_bbox[[0,2],0] + h_correction)
-                polypoints_bbox[:2,1] = np.maximum(0, polypoints_bbox[:1, 1] - v_correction)
-                x, y, w, h = cv2.boundingRect(polypoints_bbox)
+                x, y, w, h = cv2.boundingRect(calculate_bbox(polypoints, r, c))
                 bbox_image = img[y:y+h, x:x+w]
-                
 
-                # metodo 2
-                # OR
-                # sub_image = four_point_transform(img, polypoints, (avg_lenght, avg_lenght))
-                
                 square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image], dtype=object)
                 if debug_mode:
-                    square_info = np.array([square_counter, f"{letter}{number}", polypoints, polypoints_bbox], dtype=object)
-                
+                    square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c)], dtype=object)
                 squares_info[square_counter - 1] = square_info
+
     return squares_info
