@@ -373,7 +373,7 @@ def calculate_bbox(polypoints, r, c):
     exp_factor = 2.2
     ir = 7-r
 
-    h_correction = (c - 3) * sigma 
+    h_correction = np.floor((c - 3.5) * sigma) 
     v_correction = np.floor(ir**exp_factor + linear_factor*ir + offset_term)
 
     polypoints_bbox = polypoints.copy()
@@ -437,6 +437,9 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
                 
                 x, y, w, h = cv2.boundingRect(calculate_bbox(polypoints, r, c))
                 bbox_image = img[y:y+h, x:x+w]
+
+                if c-3.5 < 0:
+                    bbox_image = cv2.flip(bbox_image, 1)
 
                 square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image], dtype=object)
                 if debug_mode:
