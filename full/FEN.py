@@ -9,7 +9,11 @@ class FEN:
                 'K': 'w_King', 'Q': 'w_Queen', 'R': 'w_Rook', 'B': 'w_Bishop', 'N': 'w_Knight', 'P': 'w_Pawn',
                 'k': 'b_King', 'q': 'b_Queen', 'r': 'b_Rook', 'b': 'b_Bishop', 'n': 'b_Knight', 'p': 'b_Pawn'
             }
-        
+    piece_to_fen = {
+            'w_King': 'K', 'w_Queen': 'Q', 'w_Rook': 'R', 'w_Bishop': 'B', 'w_Knight': 'N', 'w_Pawn': 'P',
+            'b_King': 'k', 'b_Queen': 'q', 'b_Rook': 'r', 'b_Bishop': 'b', 'b_Knight': 'n', 'b_Pawn': 'p'
+        }
+    
     def __init__(self, filename):
         self.filename = filename
         self.fen, white_view = self._parseJSON()
@@ -56,10 +60,6 @@ class FEN:
     def dict_to_fen(board_dict):
         coord_to_num = {f"{chr(ord('A') + i % 8)}{8 - i // 8}": i for i in range(64)}
         fen = ''
-        piece_to_fen = {
-            'w_King': 'K', 'w_Queen': 'Q', 'w_Rook': 'R', 'w_Bishop': 'B', 'w_Knight': 'N', 'w_Pawn': 'P',
-            'b_King': 'k', 'b_Queen': 'q', 'b_Rook': 'r', 'b_Bishop': 'b', 'b_Knight': 'n', 'b_Pawn': 'p'
-        }
 
         # i number of square analyzed
         i = 0
