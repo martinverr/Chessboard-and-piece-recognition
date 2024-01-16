@@ -70,7 +70,7 @@ class FEN:
                     fen += str(empty_square_count)
                     empty_square_count = 0
                 piece = board_dict[square]
-                fen += piece_to_fen[piece] if piece else '1'
+                fen += FEN.piece_to_fen[piece] if piece else '1'
             else:
                 empty_square_count += 1
 
