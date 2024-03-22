@@ -23,6 +23,16 @@ Started with classical pipeline for grid detection
 - [x] Remove outliers: borders, Add missing lines
 - [x] Find points by Lines intersection ***4**
 - [x] Extract 64(8x8) squares sub-img
+## Prepare data
+- [x] For occupancy classifier
+- [x] For piece classifier
+## Prepare data
+- [x] Train occupancy classifier: custom CNN (98.78% trained on 100k)
+- [x] Train piece classifier: ResNet50 finetuned (98.22% trained on 29k) 
+## Predict
+- [x] .
+
+
 
 ## Comments and notes
 > ****1***
@@ -33,7 +43,7 @@ Started with classical pipeline for grid detection
 > ****2***
 >> Tried Standard and probabilistic <br>
 >> Std thresh=90. <br>
->> Prob thresh=75, minLineLength=30, maxLineGap=50 <br>
+>> Prob thresh=69, minLineLength=30, maxLineGap=50 <br>
 >> Probabilistic is solid.
 
 > ****3***

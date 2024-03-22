@@ -7,6 +7,7 @@ from models import *
 
 
 def occupation_classify(model, x):
+    model.eval()
     class_names = ['empty', 'occupied']
     with torch.no_grad():
         y = model(x)
@@ -14,9 +15,17 @@ def occupation_classify(model, x):
         prediction = torch.max(y, 1)[1]
     return prediction, [class_names[i] for i in prediction]
 
+def pieces_classify(model, x):
+    model.eval()
+    class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop']
+    with torch.no_grad():
+        y = model(x)
+        #display(torch.max(output, 1))
+        prediction = torch.max(y, 1)[1]
+    return prediction, [class_names[i] for i in prediction]
 
 
-def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC", model_saves_path = './scratch-cnn/modelsaves/'):
+def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual_cpu_stopped", model2_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/'):
     """
     Parameters
     ----------
@@ -31,24 +40,27 @@ def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC", mode
     ------
     dictiornary of occupied squares as pair <coords: piece>
     """
-    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = torch.load(f"{model_saves_path}{model_name}.pth")
-    transform = transforms.Compose([
-        transforms.Resize((80, 80)),
-        transforms.ToTensor()
-        ])
-    
+    model2 = torch.load(f"{model_saves_path}{model2_name}.pth", map_location=device)
+
+
     occupation_cnn_input = torch.empty([64, 3, 80, 80])
     for i, img in squares[:,[0,2]]:
         img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        occupation_cnn_input[i-1] = transform(img).reshape([1, 3, 80, 80])
+        occupation_cnn_input[i-1] = model.transform(img).reshape([1, 3, 80, 80])
     occupation_prediction = occupation_classify(model, occupation_cnn_input)[0]
     
     occupied_squares = squares[occupation_prediction==1]
     
-    #np.column_stack([squares[:, ], occupation_prediction])
+    pieces_cnn_input = torch.empty([len(occupied_squares), 3, model2.shape_input[0], model2.shape_input[1]])
+    for i, img in enumerate(occupied_squares[:,3]):
+        img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        pieces_cnn_input[i] = model2.transform(img).reshape([1, 3, 80, 160])
+
+    pieces_prediction = pieces_classify(model2, pieces_cnn_input)[1]
+    return {coord: piece for coord, piece in np.column_stack((occupied_squares[:,1], pieces_prediction))}
     
-    return {coord: 'w_King' for coord, bbox in occupied_squares[:, [1,3]]}
 
 
 def result(predicted_fen, true_fen):
@@ -83,9 +95,9 @@ def print_result(predicted_fen, true_fen=None):
     
 def main():
     img_path = './input/0000.png'
-    view = 'black'
+    view = 'white'
     #optional:
-    true_fen = "rn1qk2r/ppp1bppp/8/3pP2b/4n3/3B1N1P/PPP2PP1/RNBQR1K1"
+    true_fen = "6k1/1b2q1P1/3Rp1p1/2n1B3/5P2/1P6/r1P1Q3/2K5"
     
     
     warpedBoardImg = board_detection(img_path, '0000')
@@ -101,8 +113,8 @@ def main():
     predicted_pos = predict(grid_squares)
     predicted_fen = FEN.dict_to_fen(predicted_pos)
     
-    #predicted_fen = "8/8/8/4n1K1/1qk1P3/8/5N2/8 b - - 0 1"
     print_result(predicted_fen, true_fen)
+
         
 
 if __name__ == "__main__":
