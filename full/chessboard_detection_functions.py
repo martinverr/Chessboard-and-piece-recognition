@@ -234,6 +234,16 @@ def sortLinesByDim(lines, dim):
     return lines[lines[:, dim].argsort()]
 
 def warpingSection(chessLines):
+    """
+    Find the delimiter lines of the chessboard.
+    To avoid cut pieces after warp, shift those with certain margins (top:70, left:-50, right:50).
+
+    Args:
+        chessLines (np.ndarray): @see chessLines
+
+    Returns:
+        np.ndarray: 4 corners points
+    """
     hLines = chessLines.getHLinesClustered()
     vLines = chessLines.getVLinesClustered()
 

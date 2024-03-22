@@ -12,7 +12,6 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
     """
     Given a filename, returns the board image.
     """
-    start = time()
     img = cv2.imread(fname)
     img_for_wrap = np.copy(img)
     if verbose_show:
@@ -20,6 +19,7 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
         cv2.waitKey(0)
     assert img is not None
 
+    #TODO adaptive threshold
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if verbose_show:
         cv2.imshow("grey img", gray)
@@ -219,10 +219,10 @@ def grid_detection(img, viewpoint, verbose_show=False):
     hLinesFinal, vLinesFinal = line_control(img, hLinesCLustered, vLinesCLustered, verbose=verbose_show)
 
     # abort if lines are less than expected
-    if len(hLinesFinal) < 9 or len(vLines) < 9:
-            print("Not enough lines found, provide a better image")
-            return None
-        
+    if len(hLinesFinal) < 9 or len(vLinesFinal) < 9:
+        print("Not enough lines found, provide a better image")
+        return None
+
     # Trova i punti in ordine
     hLinesFinal = sortLinesByDim(hLinesFinal, 3)
     vLinesFinal = sortLinesByDim(vLinesFinal, 2)
