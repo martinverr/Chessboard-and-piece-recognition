@@ -22,13 +22,10 @@ class ResNet(nn.Module):
         self.model.fc = nn.Linear(n, 2)
         #for param in self.model.parameters():
         #  param.requires_grad = False
-        self.layer = self.model.avgpool
 
     def forward(self, x):
         return self.model(x)
     
-    def get_layer(self):
-        return self.layer
     
 
 trasformer = transforms.Compose([
@@ -51,7 +48,7 @@ def get_vector(image_name, model):
     def copy_data(m, i, o):
         my_embedding.copy_(o.data.reshape(o.data.size(1)))
     # 5. Attach that function to our selected layer
-    h = model.get_layer().register_forward_hook(copy_data)
+    h = model.model.avgpool.register_forward_hook(copy_data)
     # 6. Run the model on our transformed image
     model(t_img)
     # 7. Detach our copy function from the layer
@@ -66,7 +63,7 @@ def generate_feature_vector(dir_path,model, save_on_file=True):
     list_fv = np.zeros(shape=(num_png_files,512))
     for i,img_path in enumerate(num_png_files_path):
         if img_path.lower().endswith(".png"):
-            fv = get_vector(os.path.join(dir_path,img_path), model= model)
+            fv = get_vector(os.path.join(dir_path,img_path), model)
             list_fv[i] = fv
         else:
             continue
@@ -82,7 +79,7 @@ model = ResNet()
 dir_path = 'output/training_pieces'
 
 # generate feature vector in a dir and save if you need, if you would like to load data comment this line
-generate_feature_vector(dir_path, model, save_on_file=False)
+generate_feature_vector(dir_path, model,save_on_file=True)
 
 # load feature vector
 feature_vector_tensor = torch.load('feature_vector_pieces.pt')
@@ -90,7 +87,7 @@ feature_vector_tensor = torch.load('feature_vector_pieces.pt')
 known_feature_vectors_normalized = torch.nn.functional.normalize(feature_vector_tensor, p=2, dim=1)
 
 # the img for the query
-new_feature_vector_normalized = get_vector('output/training_pieces/0000_A2.png', model)
+new_feature_vector_normalized = get_vector('output/training_pieces/0000_A7.png', model)
 new_feature_vector_normalized = torch.nn.functional.normalize(new_feature_vector_normalized, p=2, dim=0)
 
 # Compute cosine similarity between new_feature_vector and every feature vector in known_feature_vectors
