@@ -62,17 +62,17 @@ def generate_feature_vector(dir_path,model, save_on_file=True):
     
     if save_on_file:
         ## save tensor
-        torch.save(save_fv, 'retrival/feature_vector_pieces.pt')
+        torch.save(save_fv, 'retrieval/feature_vector_pieces.pt')
     return save_fv
 
 model = torch.load(f'{model_saves_path}{model_name}.pth', map_location=device)
 dir_path = 'output/training_pieces'
 
 # generate feature vector in a dir and save if you need, if you would like to load data comment this line
-generate_feature_vector(dir_path, model,save_on_file=True)
+generate_feature_vector(dir_path, model,save_on_file=False)
 
 # load feature vector
-feature_vector_tensor = torch.load('feature_vector_pieces.pt')
+feature_vector_tensor = torch.load('retrieval/feature_vector_pieces.pt')
 # normalize both the new fv and the old ones
 known_feature_vectors_normalized = torch.nn.functional.normalize(feature_vector_tensor, p=2, dim=1)
 
