@@ -7,43 +7,33 @@ from PIL import Image
 
 import os, glob
 import numpy as np
+import sys
+sys.path.insert(0, './')
+from full.models import *
 
 ## if you change the Model maybe it will not have the 'avgpool' layer and the fv maybe will not have lenght 512
+lenght_feature_vector = 2048
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model_saves_path = './scratch-cnn/modelsaves2/'
+model_name = '2-ResNet50'
 
-class ResNet(nn.Module):
-    """ResNet model.
-    """
-
-    def __init__(self):
-        super().__init__()
-        #self.model = models.resnet18(pretrained=True)
-        self.model = models.resnet18(weights=models.ResNet18_Weights)
-        n = self.model.fc.in_features
-        self.model.fc = nn.Linear(n, 2)
-        #for param in self.model.parameters():
-        #  param.requires_grad = False
-
-    def forward(self, x):
-        return self.model(x)
-    
-    
-
-trasformer = transforms.Compose([
-    transforms.Resize(128),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
-])
+def print_name_and_lable(img_name):
+    txt_file_path = os.path.join(dir_path, img_name.replace('.png', '.txt'))
+    if os.path.exists(txt_file_path):
+        with open(txt_file_path, 'r') as txt_file:
+            print(img_name, ' ---> ', txt_file.read())
+    else:
+        print(f'no corresponding .txt file found for {img_name}')
 
 
 def get_vector(image_name, model):
     # 1. Load the image with Pillow library
     img = Image.open(image_name)
     # 2. Create a PyTorch Variable with the transformed image
-    t_img = Variable(trasformer(img=img)).unsqueeze(0)
+    t_img = model.transform(img).unsqueeze(0)
     # 3. Create a vector of zeros that will hold our feature vector
-    my_embedding = torch.zeros(512)
-    #    The 'avgpool' layer has an output size of 512
+    my_embedding = torch.zeros(lenght_feature_vector)
+    #    The 'avgpool' layer has an output size of length_feature_vector
     # 4. Define a function that will copy the output of a layer
     def copy_data(m, i, o):
         my_embedding.copy_(o.data.reshape(o.data.size(1)))
@@ -60,7 +50,7 @@ def get_vector(image_name, model):
 def generate_feature_vector(dir_path,model, save_on_file=True):
     num_png_files = len(glob.glob(dir_path + '/*.png'))
     num_png_files_path = [file for file in os.listdir(dir_path) if file.endswith('.png')]
-    list_fv = np.zeros(shape=(num_png_files,512))
+    list_fv = np.zeros(shape=(num_png_files,lenght_feature_vector))
     for i,img_path in enumerate(num_png_files_path):
         if img_path.lower().endswith(".png"):
             fv = get_vector(os.path.join(dir_path,img_path), model)
@@ -72,10 +62,10 @@ def generate_feature_vector(dir_path,model, save_on_file=True):
     
     if save_on_file:
         ## save tensor
-        torch.save(save_fv, 'feature_vector_pieces.pt')
+        torch.save(save_fv, 'retrival/feature_vector_pieces.pt')
     return save_fv
 
-model = ResNet()
+model = torch.load(f'{model_saves_path}{model_name}.pth', map_location=device)
 dir_path = 'output/training_pieces'
 
 # generate feature vector in a dir and save if you need, if you would like to load data comment this line
@@ -102,4 +92,4 @@ print("Indices of the top 10 most similar images:", top_10_indices)
 
 print("Path of the 10 most similar:")
 num_png_files_path = [file for file in os.listdir(dir_path) if file.endswith('.png')]
-_ = [print(path) for x,path in enumerate(num_png_files_path) if x in top_10_indices]
+[print_name_and_lable(img_name=path) for x,path in enumerate(num_png_files_path) if x in top_10_indices]
