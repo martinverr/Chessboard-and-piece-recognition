@@ -95,9 +95,9 @@ def print_result(predicted_fen, true_fen=None):
     
 def main():
     img_path = './input/0000.png'
-    view = 'white'
+    view = 'black'
     #optional:
-    true_fen = "6k1/1b2q1P1/3Rp1p1/2n1B3/5P2/1P6/r1P1Q3/2K5"
+    true_fen = "rn1qk2r/ppp1bppp/8/3pP2b/4n3/3B1N1P/PPP2PP1/RNBQR1K1"
     
     
     warpedBoardImg = board_detection(img_path, '0000')
