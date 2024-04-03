@@ -5,6 +5,8 @@ from collections import defaultdict
 from functools import partial
 import cv2
 import operator
+from collections import Counter
+
 
 SQUARE_SIDE_LENGTH = 227
 
@@ -336,6 +338,17 @@ def process_lines(eliminate, add, lines, mean, dim, axes):
 
     return o_lines
 
+def most_frequent_in_bined_array(arr, bin_size = 3):
+    # given x return 0, 3, 6,... depending on belonging interval [0-2.99], [3-5.99], ...
+    round_to_bin = lambda x, bin_size: np.around((x / bin_size) * bin_size)
+    
+    # Approssima i numeri ai bin e conta le occorrenze
+    rounded_arr = np.array([round_to_bin(x, bin_size) for x in arr])
+    counter = Counter(rounded_arr)
+
+    # Trova il bin con il conteggio più alto
+    return counter.most_common(1)[0][0]
+
 
 def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_plus_edge = 0.1, verbose = False):
     img_copy =img.copy()
@@ -347,6 +360,9 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     vdim = vlines[:,2]
     h_diff = np.diff(hdim)
     v_diff = np.diff(vdim)
+    
+    h_freq = most_frequent_in_bined_array(h_diff)
+    v_freq = most_frequent_in_bined_array(v_diff)
     h_mean = np.mean(h_diff)
     v_mean = np.mean(v_diff)
     
