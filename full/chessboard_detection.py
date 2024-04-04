@@ -95,14 +95,14 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
     # abort if clustered lines are less than expected
     if len(hLinesCLustered) < 9 or len(vLinesCLustered) < 9:
             print("Not enough lines found, provide a better image")
-            return None
+            return None, None
     
     # 4 corner della sezione dell'immagine da warpare
     warpingSectionCorners = warpingSection(chessLines)
 
     # Perspective transform
     #TODO: +100 forse da modificare (calcolare con una proporzione ed euristica?) 
-    new_img = four_point_transform(img_for_wrap, warpingSectionCorners, (700, 700 + 100))
+    new_img, matrix = four_point_transform(img_for_wrap, warpingSectionCorners, (700, 700 + 100))
     
     if verbose_show:
         cv2.imshow("warped", new_img)
@@ -110,7 +110,7 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
 
     
     # return warped image of chessboard + margin
-    return new_img
+    return new_img, matrix
 
 
 """

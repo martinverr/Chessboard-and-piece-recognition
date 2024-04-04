@@ -119,7 +119,8 @@ def four_point_transform(img, points, dim_wrap_img):
     pts1 = np.float32([[points[0][0]-5,points[0][1]-5], [points[1][0]+5,points[1][1]-5], [points[2][0]-5,points[2][1]+5], [points[3][0]+5,points[3][1]+5]])
     pts2 = np.float32([[0, 0], [dim_wrap_img[0], 0], [0, dim_wrap_img[1]], [dim_wrap_img[0], dim_wrap_img[1]]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
-    return cv2.warpPerspective(img, matrix, (dim_wrap_img[0], dim_wrap_img[1]))
+    ## added return matrix
+    return cv2.warpPerspective(img, matrix, (dim_wrap_img[0], dim_wrap_img[1])), matrix
 
 
 def output_lines(img, lines, color):
