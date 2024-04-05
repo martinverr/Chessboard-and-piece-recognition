@@ -100,7 +100,7 @@ def main():
     true_fen = "6k1/1b2q1P1/3Rp1p1/2n1B3/5P2/1P6/r1P1Q3/2K5"
     
     
-    warpedBoardImg = board_detection(img_path, '0000')
+    warpedBoardImg, _ = board_detection(img_path, '0000')
     if warpedBoardImg is None:
         print('Error 1st preprocessing pass (Chessboard warping)')
         exit(-1)

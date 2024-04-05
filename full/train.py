@@ -26,7 +26,7 @@ def main():
 
         imgname = input_img.split('\\')[-1]
     
-        warpedBoardImg = board_detection(input_img, 
+        warpedBoardImg,_ = board_detection(input_img, 
                                          f"{'output_' + imgname}",
                                          verbose_show=False, 
                                          verbose_output=False)
