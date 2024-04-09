@@ -4,7 +4,6 @@ import torchvision.transforms as transforms
 import os, glob
 import json
 from PIL import Image
-from FEN import FEN
 
 def pice_conversion(lable) -> str:
     """Convert the piece type to our standard label name.
@@ -72,10 +71,13 @@ def main():
     input_imgs = glob.glob('./input/**.png')
     input_annotations = glob.glob('./input/**.json')
     dir_save_bbox_gt = './output/bboxgt'
+    file_path_annotation = 'json_annotation_gt_pieces.json'
+    sample = {}
     #print(input_imgs)
 
     for input_img, input_annotation in zip(input_imgs, input_annotations):
         list_bboxgt_img_tranf = []
+        json_list = []
         if not os.path.isfile(input_img) or not os.path.isfile(input_annotation):
             continue
         
@@ -97,7 +99,7 @@ def main():
             continue
 
         # read json bbox values - list of every bboxgt - list of piece (not used), list of square position (used in the indexing of the crop) 
-        list_bboxgt_img, _, list_square_img = read_json_annotation(input_annotation)
+        list_bboxgt_img, list_pice_img, list_square_img = read_json_annotation(input_annotation)
         ## use the matrix to converte the pixel
         ### ATTENZIONE POSSIBILI VALORI NEGATIVI DELLE BBOX -> gestito sotto quando faccio il crop delle img
         [list_bboxgt_img_tranf.append(transformation_bboxgt(bbox_gt,matrix)) for bbox_gt in list_bboxgt_img]
@@ -121,7 +123,7 @@ def main():
 
         ## given 4 point cut the img
 
-        for bbox, square in zip(list_bboxgt_img_tranf, list_square_img):
+        for bbox, square, piece in zip(list_bboxgt_img_tranf, list_square_img, list_pice_img):
             x,y,w,h = bbox
             yh = y+h
             xw =x+w
@@ -138,6 +140,8 @@ def main():
             # print per il debug
             # print(x,y,yh,xw, (800-(yh-y)) + (yh-y), (700-(xw-x)) + (xw-x))
             new_img = warpedBoardImg[y:yh,x:xw]
+
+            json_list.append({"piece": str(piece), "position": str(square), "bbox": [x,y,w,h]})
             if verbose:
                 cv2.imshow(f'Singular bbox for {square} in img {input_img}', new_img)
                 cv2.waitKey(0)
@@ -147,7 +151,42 @@ def main():
             os.makedirs(dir_save_bbox_gt,exist_ok=True)
             cv2.imwrite(os.path.join(dir_save_bbox_gt, f'{imgname.strip(".png")}_{square.upper()}.png'), new_img)
 
+        ## create json file with the following dict -> [{"{index_img}": [{"piece": k_black, "position": h8, "bbox": [x,y,w,h]}, {"piece":....}]]}
+        sample[f"{imgname.strip('.png')}"] = json_list
+
+    with open(file_path_annotation, 'w') as fp:
+        json.dump(sample, fp)
+            
+
+def from_json_to_annotation(file_path_annotation, index):
+    list_values =[]
+    with open(file_path_annotation, 'r') as f:
+        data_json = json.load(f)
+
+    if index in data_json:
+        # Iterate through the list of dictionaries for the specified image index
+        for piece_info in data_json[index]:
+            # Access the values using dictionary keys
+            piece = piece_info["piece"]
+            position = piece_info["position"]
+            bbox = piece_info["bbox"]
+
+            mask = torch.zeros(800,700, dtype=bool)
+            x,y,w,h = bbox
+            mask[y:y+h,x:x+w] = 1
+            # Process the piece information as needed
+            print(f"Piece: {piece}, Position: {position}, Bbox: {bbox}")
+            list_values.append({"piece": piece, "position": position, "mask": mask})
+
+        return {f"{index}": list_values}
+    else:
+        print(f"Image index '{index}' not found in the JSON data.")
+        return None
+    
+
         
 
 if __name__ == "__main__":
+    file_path_annotation = 'json_annotation_gt_pieces.json'
     main()
+    print(from_json_to_annotation(file_path_annotation, "0024"))
