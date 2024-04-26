@@ -420,9 +420,10 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
             square coords: str ('A1', ..., 'H8')
             square_image: numpy.ndarray, img of the square
             bbox_image: numpy.ndarray, img of the piece i
+            bbox_value: numpy.ndarray x,y,h,w of the rectangular bounding box
         ]
     """
-    squares_info = np.empty((64, 4), dtype=object)
+    squares_info = np.empty((64, 5), dtype=object)
     square_counter = 0
 
     for r in np.arange(8):
@@ -448,13 +449,15 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
                 
                 x, y, w, h = cv2.boundingRect(calculate_bbox(polypoints, r, c))
                 bbox_image = img[y:y+h, x:x+w]
+                #a = np.array([1, 2], dtype=np.float32)
+                box_coord = np.array([x,y,w,h], dtype=int)
 
                 if c-3.5 < 0:
                     bbox_image = cv2.flip(bbox_image, 1)
 
-                square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image], dtype=object)
+                square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image, box_coord], dtype=object)
                 if debug_mode:
-                    square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c)], dtype=object)
+                    square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c), box_coord], dtype=object)
                 squares_info[square_counter - 1] = square_info
 
     return squares_info
