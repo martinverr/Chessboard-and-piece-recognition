@@ -6,6 +6,8 @@ from functools import partial
 import cv2
 import operator
 from collections import Counter
+from scipy.stats import trim_mean
+from sklearn.cluster import KMeans
 
 
 SQUARE_SIDE_LENGTH = 227
@@ -149,7 +151,7 @@ def split_board(img):
     return arr
 
 
-def removeOutLiers(lines):
+def removeOutLiers(lines, grid_pass=False):
     angles_degree = np.ndarray(shape=(1,1), dtype=np.double)
     
     for line in lines:
@@ -159,31 +161,41 @@ def removeOutLiers(lines):
         y0 = np.sin(theta)*rho
         
         # P1 punto casuale calcolato a partire da P0
-        x1 = int(x0 + 1000 * (-np.sin(theta)))
-        y1 = int(y0 + 1000 * (np.cos(theta)))
+        x1 = int(x0 + 2000 * (-np.sin(theta)))
+        y1 = int(y0 + 2000 * (np.cos(theta)))
         
         # P2 punto casuale calcolato a partire da P0
-        x2 = int(x0 - 1000 * (-np.sin(theta)))
-        y2 = int(y0 - 1000 * (np.cos(theta)))
+        x2 = int(x0 - 2000 * (-np.sin(theta)))
+        y2 = int(y0 - 2000 * (np.cos(theta)))
         
         """ y = mx + c """
         #TODO find a better solution for division by zero
         if x2-x1 != 0:
             m = float(y2 - y1) / (x2 - x1)
         else:
-            m = 20000
+            m = np.finfo(np.float32).max
         
         angle_degree = np.abs(np.degrees(np.arctan(m)))
         angles_degree = np.append(angles_degree, np.ndarray(buffer=np.array(angle_degree, dtype=np.double), shape=(1,1)), axis=0)
     
-    
-    #mean_m = m_sum / lines.shape[0]
-    mean_m = np.mean(angles_degree[1:])
-    std = np.std(angles_degree[1:])
-    
-    removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5 * std).reshape(-1)]
-    filtered_lines = lines[(~(np.abs(angles_degree[1:] - mean_m) > 2.5 * std).reshape(-1))]
-    return filtered_lines, removed_lines
+    if grid_pass == True:
+        #mean_m = m_sum / lines.shape[0]
+        freq_m = most_frequent_in_bined_array(angles_degree[1:].reshape(-1).tolist(), bin_size=1)
+        std = np.std(angles_degree[1:])
+        removed_lines = lines[np.logical_or(np.abs(angles_degree[1:]) >= (freq_m + 5), np.abs(angles_degree[1:]) < (freq_m - 5)).reshape(-1)]
+        filtered_lines = lines[~(np.logical_or(np.abs(angles_degree[1:]) >= (freq_m + 5), np.abs(angles_degree[1:]) < (freq_m - 5))).reshape(-1)]
+        return filtered_lines, removed_lines
+    else:
+        #mean_m = m_sum / lines.shape[0]
+        #mean_m = most_frequent_in_bined_array(angles_degree[1:].reshape(-1).tolist(), bin_size=1)
+        '''trimmed_count = int(len(angles_degree[1:]) * 0.1)
+        sorted_angles = np.sort(angles_degree[1:])
+        mean_m = np.mean(sorted_angles[1+trimmed_count:-trimmed_count])'''
+        mean_m = np.mean(angles_degree[1:])
+        std = np.std(angles_degree[1:])
+        removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5*std).reshape(-1)]
+        filtered_lines = lines[(~(np.abs(angles_degree[1:] - mean_m) > 2.5*std).reshape(-1))]
+        return filtered_lines, removed_lines
 
 def abc_line_eq_coeffs(line):
     x1, y1, x2, y2 = line
@@ -369,8 +381,9 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     h_eliminate, h_add = analyze_diff(h_diff, h_mean)
     v_eliminate, v_add = analyze_diff(v_diff,v_mean)
 
-    hlines = process_lines(eliminate= h_eliminate, add=h_add, lines=hlines, mean=h_mean, dim=H, axes=3)
-    vlines = process_lines(eliminate= v_eliminate, add=v_add, lines=vlines, mean=v_mean, dim=W, axes=2)
+    hlines = process_lines(eliminate= h_eliminate, add=h_add, lines=hlines, mean=h_freq, dim=H, axes=3)
+    vlines = process_lines(eliminate= v_eliminate, add=v_add, lines=vlines, mean=v_freq, dim=W, axes=2)
+
     if verbose:
         output_lines(img_copy, hlines, (255,0,0))
         output_lines(img_copy, vlines, (0,255,0))
@@ -459,6 +472,8 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
                                        points[(r+1)*9+c+1]], np.int32)
                 
                 x, y, w, h = cv2.boundingRect(polypoints)
+                x = max(0, x)
+                y = max(0, y)
                 square_image = img[y:y+h, x:x+w].copy()
                 
                 x, y, w, h = cv2.boundingRect(calculate_bbox(polypoints, r, c))
