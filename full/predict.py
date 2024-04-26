@@ -108,7 +108,7 @@ def main():
         print('Error 1st preprocessing pass (Chessboard warping)')
         exit(-1)
     
-    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=True)
+    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=False)
     if grid_squares is None:
         print('Error in 2nd preprocessing pass (Squares detection)')
         exit(-2)

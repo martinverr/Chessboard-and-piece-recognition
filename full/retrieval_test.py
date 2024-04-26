@@ -25,16 +25,22 @@ def get_vector(img, model, lenght_feature_vector=2048):
     # 8. Return the feature vector
     return my_embedding
 
-def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/'):
 
+
+def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/'):
+    classes = {'b_Bishop' : 0, 'b_King' : 1, 'b_Knight' : 2, 'b_Pawn' : 3, 'b_Queen' : 4,
+                     'b_Rook' : 5, 'w_Bishop' : 6, 'w_King' : 7, 'w_Knight' : 8, 'w_Pawn' : 9, 'w_Queen' : 10,
+                     'w_Rook' : 11}
+
+    inverted_classes = {value: key for key, value in classes.items()}
     results = []
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = torch.load(f"{model_saves_path}{model_name}.pth", map_location=device)
 
-    loaded = np.load('retrieval/feature_vector_pieces.npy')
+    loaded = torch.load('retrieval/feature_vector_pieces.pt')
 
-    feature_vector_tensor = torch.from_numpy(np.array(loaded[:, 1:].astype(float)))
-    paths_column = loaded[:,0].tolist()
+    feature_vector_tensor = torch.from_numpy(np.array(loaded[:, 1:]))
+    classes_column = loaded[:,0].tolist()
     # normalize both the new fv and the old ones
     known_feature_vectors_normalized = torch.nn.functional.normalize(feature_vector_tensor, p=2, dim=1)
 
@@ -53,9 +59,10 @@ def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNe
         top_10_indices = sorted_indices[:10]
 
         classes_of_first_10 = []
-        #print("Path of the 10 most similar:")
-        [classes_of_first_10.append(os.path.basename(os.path.dirname(paths_column[index]))) for index,path in enumerate(paths_column) if index in top_10_indices]
-        #[print(paths_column[index], ' --> ', os.path.basename(os.path.dirname(paths_column[index]))) for index,path in enumerate(paths_column) if index in top_10_indices]
+        #print("classes of the 10 most similar:")
+        #[print(inverted_classes[classes_column[index]]) for index, _ in enumerate(classes_column) if index in top_10_indices]
+        [classes_of_first_10.append(inverted_classes[classes_column[index]]) for index, _ in enumerate(classes_column) if index in top_10_indices]
+
 
         # Conta le occorrenze di ciascuna stringa
         count = Counter(classes_of_first_10)
