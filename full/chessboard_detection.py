@@ -61,7 +61,7 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
     if verbose_show:
         imgcopy = img.copy()
         output_lines(imgcopy, hLines, (0,0,255))
-        output_lines(imgcopy, vLines, (0,0,255))
+        output_lines(imgcopy, vLines, (255,0,255))
         output_lines(imgcopy, hLinesRemoved, (0,255,0))
         output_lines(imgcopy, vLinesRemoved, (0,255,0))
         cv2.imshow("lines standard con eliminazione outliers", imgcopy)
@@ -163,20 +163,20 @@ def grid_detection(img, viewpoint, verbose_show=False):
     hLines = chessLines.getHLines()
     vLines = chessLines.getVLines()
 
-    hLines, hLinesRemoved = removeOutLiers(hLines)
-    vLines, vLinesRemoved = removeOutLiers(vLines)
+    hLines, hLinesRemoved = removeOutLiers(hLines, grid_pass=True)
+    vLines, vLinesRemoved = removeOutLiers(vLines, grid_pass=True)
     chessLines.setHLines(hLines)
     chessLines.setVLines(vLines)
-    """
+    
     if verbose_show:
         imgcopy = img.copy()
         output_lines(imgcopy, hLines, (0,0,255))
-        output_lines(imgcopy, vLines, (0,0,255))
-        output_lines(imgcopy, hLinesRemoved, (0,255,0))
+        output_lines(imgcopy, vLines, (255,0,255))
+        output_lines(imgcopy, hLinesRemoved, (0,0,0))
         output_lines(imgcopy, vLinesRemoved, (0,255,0))
         cv2.imshow("grid_detection: eliminazione linee outliers", imgcopy)
         cv2.waitKey(0)
-    """
+    
     # clustering linee
     chessLines.cluster('DBSCAN')
     hLinesCLustered = chessLines.getHLinesClustered()
@@ -222,6 +222,10 @@ def grid_detection(img, viewpoint, verbose_show=False):
     if len(hLinesFinal) < 9 or len(vLinesFinal) < 9:
         print("Not enough lines found, provide a better image")
         return None
+    
+    if len(hLinesFinal) > 9 or len(vLinesFinal) > 9:
+        print("Too much lines found, provide a better image")
+        return None
 
     # Trova i punti in ordine
     hLinesFinal = sortLinesByDim(hLinesFinal, 3)
@@ -247,7 +251,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
 
 
     # Debug bbox, NOTE: call extract_squares(..., debug_mode=True) !
-    if verbose_show:
+    if False:
         for _, _, points, bbox_points in squares:
             imgcopy = img.copy()
             points = points.reshape((1, 4, 2))

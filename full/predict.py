@@ -4,6 +4,7 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from models import *
+from retrieval_test import *
 
 
 def occupation_classify(model, x):
@@ -59,7 +60,9 @@ def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual
         pieces_cnn_input[i] = model2.transform(img).reshape([1, 3, 80, 160])
 
     pieces_prediction = pieces_classify(model2, pieces_cnn_input)[1]
-    return {coord: piece for coord, piece in np.column_stack((occupied_squares[:,1], pieces_prediction))}
+    pieces_retrieval_prediction = retrieval(imgs=pieces_cnn_input, model=model2)
+
+    return {coord: piece for coord, piece in np.column_stack((occupied_squares[:,1], pieces_prediction))}, {coord: piece for coord, piece in np.column_stack((occupied_squares[:,1], pieces_retrieval_prediction))}
     
 
 
@@ -94,26 +97,42 @@ def print_result(predicted_fen, true_fen=None):
     
     
 def main():
-    img_path = './input/0000.png'
-    view = 'black'
+    img_path = './input/0001.png'
+    view = 'white'
     #optional:
-    true_fen = "rn1qk2r/ppp1bppp/8/3pP2b/4n3/3B1N1P/PPP2PP1/RNBQR1K1"
+    true_fen = "r2q1rk1/pp2npbp/3p1np1/P2pp3/2P1P1b1/2N2NP1/1P3PBP/R1BQ1RK1"
     
     
-    warpedBoardImg = board_detection(img_path, '0000')
+    warpedBoardImg = board_detection(img_path, '0000', verbose_show=False)
     if warpedBoardImg is None:
         print('Error 1st preprocessing pass (Chessboard warping)')
         exit(-1)
     
-    grid_squares = grid_detection(warpedBoardImg, view)
+    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=True)
     if grid_squares is None:
         print('Error in 2nd preprocessing pass (Squares detection)')
         exit(-2)
     
-    predicted_pos = predict(grid_squares)
-    predicted_fen = FEN.dict_to_fen(predicted_pos)
-    
+    predicted_pos_cnn, predicted_pos_retrievel = predict(grid_squares)
+    predicted_fen = FEN.dict_to_fen(predicted_pos_cnn)
+    truth = FEN.fen_to_dict(true_fen)
+
     print_result(predicted_fen, true_fen)
+
+    for coord, pred in predicted_pos_retrievel.items():
+        print(coord, ' --> ', pred)
+
+    print("\ndifferent predictions between cnn and retrieval")
+    some_differences = False
+    for coord, pred in predicted_pos_retrievel.items():
+        if predicted_pos_cnn[coord] != pred:
+            some_differences = True
+            print(coord, ' cnn: ', predicted_pos_cnn[coord], ' retrieval: ', pred)
+    if some_differences == False:
+        print('no differences found')
+
+    
+            
 
         
 
