@@ -81,14 +81,26 @@ def board_detection(fname, output_name, verbose_show=False, verbose_output=False
             cv2.putText(imgcopy,
                         "Not enough line: DISCARDED",
                         (100,100), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 2,
-                        (0,0,255), 3)
+                        cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0,0,255), 2)
             cv2.putText(imgcopy, 
                         "Provide a better image",
-                        (100,200), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 2,
-                        (0,0,255), 3)
-        cv2.imshow("clustered lines", imgcopy)
+                        (100,150), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0,0,255), 2)
+        for line in hLinesCLustered:
+            cv2.putText(imgcopy,
+                        f"{line[3]}",
+                        (300,int(line[3])-5), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                        (255,0,0), 2)
+        for line in vLinesCLustered:
+            cv2.putText(imgcopy,
+                        f"{int(line[2])}",
+                        (int(line[2]), 350),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (0,0,255), 2)
+        cv2.imshow("grid_detection: clustered lines", imgcopy)
         cv2.waitKey(0)
             
     

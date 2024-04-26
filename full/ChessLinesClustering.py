@@ -219,19 +219,19 @@ class ChessLines():
             y0 = np.sin(theta)*rho
             
             # P1 punto casuale calcolato a partire da P0
-            x1 = int(x0 + 1000 * (-np.sin(theta)))
-            y1 = int(y0 + 1000 * (np.cos(theta)))
+            x1 = int(x0 + 2000 * (-np.sin(theta)))
+            y1 = int(y0 + 2000 * (np.cos(theta)))
             
             # P2 punto casuale calcolato a partire da P0
-            x2 = int(x0 - 1000 * (-np.sin(theta)))
-            y2 = int(y0 - 1000 * (np.cos(theta)))
+            x2 = int(x0 - 2000 * (-np.sin(theta)))
+            y2 = int(y0 - 2000 * (np.cos(theta)))
             
             """ y = mx + c """
             #TODO find a better solution for division by zero 
             if x2-x1 != 0:
                 m = float(y2 - y1) / (x2 - x1)
             else:
-                m = 20000
+                m = np.finfo(np.float32).max
             c = (y2 - (m * x2))
             coefficients = [m, c]
             intersectionX = line_intersection(m, c, 0, H/2)[0]
@@ -257,7 +257,7 @@ class ChessLines():
             
             # remember as next previous line
             m_old = m
-            m_sum += m
+            m_sum += np.abs(m)
             c_old = c
             prev_line = [rho, theta]
             prev_intersectionX = intersectionX
