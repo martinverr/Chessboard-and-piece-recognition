@@ -8,36 +8,45 @@ from chessboard_detection_functions import *
 import warnings
 warnings.filterwarnings("ignore")
 
-def board_detection(fname, verbose_show=False):
+def board_detection(fname : str, verbose_show=False):
     """
-    Given a filename, returns the board image.
+    Given a filename, returns the warped board image.
+
+    Parameters
+    ----------
+    fname : String
+        File img path
+    verbose_show : Set true to show intermidiate steps
+        default False
+        
+    Return
+    ------
+    np.ndarray
+    Image warped 700x800 
     """
+
     img = cv2.imread(fname)
+    assert img is not None
     img_for_wrap = np.copy(img)
     if verbose_show:
         cv2.imshow("img", img)
         cv2.waitKey(0)
-    assert img is not None
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     #TODO adaptive threshold
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if verbose_show:
-        cv2.imshow("grey img", gray)
-        cv2.waitKey(0)
-
     edges = cv2.Canny(gray, 70, 400, apertureSize=3)
     if verbose_show:
         cv2.imshow(f"cannied", edges)
         cv2.waitKey(0)
-    #assert np.count_nonzero(edges) / float(gray.shape[0] * gray.shape[1]) < 0.015
 
     # Hough line prob detection
     lines2 = cv2.HoughLinesP(edges, 1, np.pi/180, 69, minLineLength=30, maxLineGap=50)
     lines2 = np.reshape(lines2, (-1, 4))
     lines2 = np.array([two_points_to_polar(line) for line in lines2])
     
-    imgcopy2 = img.copy()     
     if verbose_show:
+        imgcopy2 = img.copy()     
         output_lines(imgcopy2, lines2, (0,255,0))
         cv2.imshow("lines prob", imgcopy2)
         cv2.waitKey(0)
@@ -47,12 +56,10 @@ def board_detection(fname, verbose_show=False):
     chessLines = ChessLines(lines2, W, H)
     
     # Horizontal and Vertical lines
-    # metodo kmeans su rho
     hLines = chessLines.getHLines()
     vLines = chessLines.getVLines()
 
     # Pulizia linee
-    # TODO: forse il parametro dei removeOutLiers con il nuovo dataset e' da rivedere, a primo impatto non mi sembra
     hLines, hLinesRemoved = removeOutLiers(hLines)
     vLines, vLinesRemoved = removeOutLiers(vLines)
     chessLines.setHLines(hLines)
@@ -113,19 +120,18 @@ def board_detection(fname, verbose_show=False):
     warpingSectionCorners = warpingSection(chessLines)
 
     # Perspective transform
-    #TODO: +100 forse da modificare (calcolare con una proporzione ed euristica?) 
     new_img = four_point_transform(img_for_wrap, warpingSectionCorners, (700, 700 + 100))
     
     if verbose_show:
         cv2.imshow("warped", new_img)
         cv2.waitKey(0)
 
-    
     # return warped image of chessboard + margin
     return new_img
 
 
-"""
+def grid_detection(img, viewpoint, verbose_show=False):
+    """
     It is assumed that the first pass has been done, and therefore the input image has been warped.
     
     A second preprocessing pass is performed for better lines, and then the function reconstructs
@@ -150,8 +156,8 @@ def board_detection(fname, verbose_show=False):
             square_image: numpy.ndarray, img of the square
             bbox_image: numpy.ndarray, img of the piece i
         ]
-"""
-def grid_detection(img, viewpoint, verbose_show=False):
+    """ 
+    
     assert img is not None
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 65, 350, apertureSize=3)
@@ -259,22 +265,8 @@ def grid_detection(img, viewpoint, verbose_show=False):
 
 
     # Squares Extraction
-    squares = extract_squares(img, points, viewpoint)
-
-
-    # Debug bbox, NOTE: call extract_squares(..., debug_mode=True) !
-    if False:
-        for _, _, points, bbox_points in squares:
-            imgcopy = img.copy()
-            points = points.reshape((1, 4, 2))
-            bbox_points = bbox_points.reshape((1, 4, 2))
-            cv2.polylines(imgcopy, [points[0][[0,1,3,2]]], isClosed=True, color=(0,200,0), thickness=2)
-            color = tuple(np.random.randint(0, 256, 3).tolist())  # Random color
-            cv2.polylines(imgcopy, [bbox_points[0][[0,1,3,2]]], isClosed=True, color=(0,255,0), thickness=2)
-            
-            cv2.imshow(f'Bbox', imgcopy)
-            cv2.waitKey(0)
-   
+    squares = extract_squares(img, points, viewpoint, debug_mode=verbose_show)
+ 
     if verbose_show:
         for square_coord, squareimg, bboximg in squares[:, 1:]:
             squareimg2 = squareimg.copy()

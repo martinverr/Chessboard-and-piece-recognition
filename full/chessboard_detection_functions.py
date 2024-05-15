@@ -484,7 +484,19 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
 
                 square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image], dtype=object)
                 if debug_mode:
-                    square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c)], dtype=object)
+                    #square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c)], dtype=object)
+
+                
+                    imgcopy = img.copy()
+                    bbox_points = calculate_bbox(polypoints, r, c).reshape((1, 4, 2))
+                    polypoints = polypoints.reshape((1, 4, 2))
+                    cv2.polylines(imgcopy, [polypoints[0][[0,1,3,2]]], isClosed=True, color=(0,200,0), thickness=2)
+                    color = tuple(np.random.randint(0, 256, 3).tolist())  # Random color
+                    cv2.polylines(imgcopy, [bbox_points[0][[0,1,3,2]]], isClosed=True, color=(0,255,0), thickness=2)
+                    
+                    cv2.imshow(f'Bbox', imgcopy)
+                    cv2.waitKey(0)
+        
                 squares_info[square_counter - 1] = square_info
 
     return squares_info

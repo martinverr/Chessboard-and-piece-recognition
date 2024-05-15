@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from models import *
-from full.retrieval import *
+from retrieval import *
 import sys
 
 
@@ -128,7 +128,7 @@ def main():
         exit(-2)
     
     # Square detection and extraction
-    grid_squares = grid_detection(warpedBoardImg, view)
+    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=True)
     if grid_squares is None:
         print('Error in 2nd preprocessing pass (Squares detection)')
         exit(-3)
