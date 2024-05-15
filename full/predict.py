@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from models import *
-from retrieval_test import *
+from full.retrieval import *
 import sys
 
 
