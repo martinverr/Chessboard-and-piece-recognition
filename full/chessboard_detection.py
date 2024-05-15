@@ -8,7 +8,7 @@ from chessboard_detection_functions import *
 import warnings
 warnings.filterwarnings("ignore")
 
-def board_detection(fname, output_name, verbose_show=False, verbose_output=False):
+def board_detection(fname, verbose_show=False):
     """
     Given a filename, returns the board image.
     """
