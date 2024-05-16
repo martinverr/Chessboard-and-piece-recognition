@@ -204,3 +204,11 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     cv2.imshow("prova", img_copy)
     cv2.waitKey(0)
 """
+
+""" grid pass lele
+#mean_m = m_sum / lines.shape[0]
+#mean_m = most_frequent_in_bined_array(angles_degree[1:].reshape(-1).tolist(), bin_size=1)
+trimmed_count = int(len(angles_degree[1:]) * 0.1)
+sorted_angles = np.sort(angles_degree[1:])
+mean_m = np.mean(sorted_angles[1+trimmed_count:-trimmed_count])
+"""

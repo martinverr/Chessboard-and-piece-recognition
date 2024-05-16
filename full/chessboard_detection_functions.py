@@ -32,9 +32,10 @@ def auto_canny(image, sigma=0.33, verbose=False):
     # return the edged image
     return edged
 
+
 def hor_vert_lines(lines):
     """
-    A line is given by rho and theta. Given a list of lines, returns a list of
+    Given a list of lines, returns a list of
     horizontal lines (theta=90 deg) and a list of vertical lines (theta=0 deg).
     """
     h = []
@@ -46,10 +47,11 @@ def hor_vert_lines(lines):
             h.append([distance, angle])
     return h, v
 
+
 def intersections(h, v):
     """
-    Given lists of horizontal and vertical lines in (rho, theta) form, returns list
-    of (x, y) intersection points.
+    Given lists of horizontal and vertical lines in (rho, theta) form, returns numpy list
+    of (x, y) intersection points (shape (n, 2))
     """
     points = []
     for d1, a1 in h:
@@ -60,19 +62,6 @@ def intersections(h, v):
             points.append(point)
     return np.array(points)
 
-def cluster(points, max_dist=50):
-    """
-    Given a list of points, returns a list of cluster centers.
-    """
-    Y = spatial.distance.pdist(points)
-    Z = clstr.hierarchy.single(Y)
-    T = clstr.hierarchy.fcluster(Z, max_dist, 'distance')
-    clusters = defaultdict(list)
-    for i in range(len(T)):
-        clusters[T[i]].append(points[i])
-    clusters = clusters.values()
-    clusters = map(lambda arr: (np.mean(np.array(arr)[:,0]), np.mean(np.array(arr)[:,1])), clusters)
-    return clusters
 
 def closest_point(points, loc):
     """
@@ -81,9 +70,10 @@ def closest_point(points, loc):
     dists = np.array(list(map(partial(spatial.distance.euclidean(points, loc)), points)))
     return points[dists.argmin()]
 
+
 def find_corners(points, mh):
     """
-    Given a list of points, returns a list containing the four corner points.
+    Given a list of candidate points, returns a list containing the four corner points.
     """
     points = [x for x in points if (x[0] >= 0 and x[1] >= 0)] #remove points with x or y <0
     if np.abs(mh) > 0.1:
@@ -102,8 +92,8 @@ def find_corners(points, mh):
             top_right, _ = min(enumerate([pt[1] for pt in points]), key=operator.itemgetter(1))
             corners = [points[top_left], points[top_right], points[bottom_left], points[bottom_right]]
 
+    #scacchiera dritta
     else: 
-        #scacchiera dritta
         # Bottom-right point has the largest (x + y) value
         # Top-left has point smallest (x + y) value
         # Bottom-left point has smallest (x - y) value
@@ -117,9 +107,11 @@ def find_corners(points, mh):
         corners = [points[top_left], points[top_right], points[bottom_left], points[bottom_right]]
     return corners
 
+
 def four_point_transform(img, points, dim_wrap_img):
-    #pts1 = np.float32(points)
-    #ritaglio con 5px di "padding"
+    """
+    Warp the img given the 4 corner points
+    """
     pts1 = np.float32([[points[0][0]-5,points[0][1]-5], [points[1][0]+5,points[1][1]-5], [points[2][0]-5,points[2][1]+5], [points[3][0]+5,points[3][1]+5]])
     pts2 = np.float32([[0, 0], [dim_wrap_img[0], 0], [0, dim_wrap_img[1]], [dim_wrap_img[0], dim_wrap_img[1]]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
@@ -139,19 +131,9 @@ def output_lines(img, lines, color):
         y2 = int(y0 - 4000*(a))
         cv2.line(img,(x1,y1),(x2,y2),color,2)
 
-def split_board(img):
-    """
-    Given a board image, returns an array of 64 smaller images.
-    """
-    arr = []
-    sq_len = img.shape[0] / 8
-    for i in range(8):
-        for j in range(8):
-            arr.append(img[i * sq_len : (i + 1) * sq_len, j * sq_len : (j + 1) * sq_len])
-    return arr
-
 
 def removeOutLiers(lines, grid_pass=False):
+
     angles_degree = np.ndarray(shape=(1,1), dtype=np.double)
     
     for line in lines:
@@ -186,11 +168,6 @@ def removeOutLiers(lines, grid_pass=False):
         filtered_lines = lines[~(np.logical_or(np.abs(angles_degree[1:]) >= (freq_m + 5), np.abs(angles_degree[1:]) < (freq_m - 5))).reshape(-1)]
         return filtered_lines, removed_lines
     else:
-        #mean_m = m_sum / lines.shape[0]
-        #mean_m = most_frequent_in_bined_array(angles_degree[1:].reshape(-1).tolist(), bin_size=1)
-        '''trimmed_count = int(len(angles_degree[1:]) * 0.1)
-        sorted_angles = np.sort(angles_degree[1:])
-        mean_m = np.mean(sorted_angles[1+trimmed_count:-trimmed_count])'''
         mean_m = np.mean(angles_degree[1:])
         std = np.std(angles_degree[1:])
         removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5*std).reshape(-1)]
@@ -198,6 +175,10 @@ def removeOutLiers(lines, grid_pass=False):
         return filtered_lines, removed_lines
 
 def abc_line_eq_coeffs(line):
+    """
+    Given a line in format (x1, y1, x2, y2), return coefficients of equation
+    ax + by + c
+    """
     x1, y1, x2, y2 = line
 
     direction_vector = np.array([x2 - x1, y2 - y1])
@@ -211,6 +192,10 @@ def abc_line_eq_coeffs(line):
 
 
 def projection_point_from_origin(line):
+    """
+    Given a line in format (a,b,c) @see abc_line_eq_coeffs, return the projection point of the
+    origin on the line
+    """
     a, b, c = abc_line_eq_coeffs(line)
     
     length_squared = a**2 + b**2
@@ -223,7 +208,8 @@ def projection_point_from_origin(line):
 
     return proj_x, proj_y
 
-def two_points_to_polar(line):
+
+def two_points_to_polar(line, verbose=False):
     # Get points from the vector
     x1, y1, x2, y2 = line
 
@@ -238,10 +224,12 @@ def two_points_to_polar(line):
         rho = np.sqrt(proj_x**2 + proj_y**2)
         theta = np.arctan2(proj_y, proj_x)
 
-    #print(f"points: {(x1, y1)} and {(x2,y2)}")
-    #print(f"projection equation: {a:.1f}x + {b:.1f}y + {c:.1f}")
-    #print(f"projection point: {(proj_x, proj_y)}")
-    #print(f"rho: {rho:.2f}, theta: {np.degrees(theta)}")
+    if verbose:
+        print(f"points: {(x1, y1)} and {(x2,y2)}")
+        print(f"projection equation: {a:.1f}x + {b:.1f}y + {c:.1f}")
+        print(f"projection point: {(proj_x, proj_y)}")
+        print(f"rho: {rho:.2f}, theta: {np.degrees(theta)}")
+    
     return np.array([rho, theta])
 
 def sortLinesByDim(lines, dim):
