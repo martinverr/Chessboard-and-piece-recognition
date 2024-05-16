@@ -21,9 +21,8 @@ def get_board_with_maskrcnn(image_path, model = None, verbose_show = False):
     model.to(device)
     model.eval()
 
-    img_path = './input/0206.png'
-    img = Image.open(img_path)
-    img_bg = cv2.imread(img_path)
+    img = Image.open(image_path)
+    img_bg = cv2.imread(image_path)
     img = model.transform(img).unsqueeze(0)
 
     with torch.no_grad():
