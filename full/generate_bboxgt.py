@@ -84,12 +84,14 @@ def main():
     file_path_annotation_custom =  'json_annotation_custom_pieces.json'
     sample = {}
     custom_sample = {}
+    list_not_found = []
     #print(input_imgs)
 
     for input_img, input_annotation in zip(input_imgs, input_annotations):
         list_bboxgt_img_tranf = []
         json_list = []
         custom_json_list = []
+
         if not os.path.isfile(input_img) or not os.path.isfile(input_annotation):
             continue
         
@@ -109,6 +111,7 @@ def main():
             # if no warp is found skip
             if warpedBoardImg is None and matrix is None:
                 print(f"An error has occured so the file {os.path.basename(input_img).strip('.png')} is skipped")
+                list_not_found.append(imgname)
                 continue
 
 
@@ -119,6 +122,7 @@ def main():
             
             if square_info is None:
                 print(f"An error has occured so the file {os.path.basename(input_img).strip('.png')} is skipped")
+                list_not_found.append(imgname)
                 continue
 
             index_custom_bbox = [num for num in range(len(square_info[:,1])) if square_info[num,1].lower() in list_square_img]
@@ -179,7 +183,7 @@ def main():
                 
                 ## save the new img in path '/output/bboxgt/{index_name}_{position}.png'
                 os.makedirs(dir_save_bbox_gt,exist_ok=True)
-                cv2.imwrite(os.path.join(dir_save_bbox_gt, f'{imgname.strip(".png")}_{square.upper()}.png'), new_img)
+                #cv2.imwrite(os.path.join(dir_save_bbox_gt, f'{imgname.strip(".png")}_{square.upper()}.png'), new_img)
 
             ## create json file with the following dict -> [{"{index_img}": [{"piece": k_black, "position": h8, "bbox": [x,y,w,h]}, {"piece":....}]]}
             sample[f"{imgname.strip('.png')}"] = json_list
@@ -187,12 +191,16 @@ def main():
         except:
             print(f"error {imgname}")
 
+    print(list_not_found)
+    with open("img_not_found.txt", 'w') as fp:
+        fp.write(str(list_not_found))
 
-    with open(file_path_annotation, 'w') as fp:
-        json.dump(sample, fp)
+    # with open(file_path_annotation, 'w') as fp:
+    #     json.dump(sample, fp)
 
-    with open(file_path_annotation_custom, 'w') as fp:
-        json.dump(custom_sample, fp)
+    # with open(file_path_annotation_custom, 'w') as fp:
+    #     json.dump(custom_sample, fp)
+    
             
 
 def from_json_to_annotation(file_path_annotation, index, mask = False):
