@@ -14,7 +14,7 @@ def get_board_with_maskrcnn(image_path, model = None, verbose_show = False):
     '''
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if model != None:
+    if model == None:
         model = MaskRCNN_board() 
         model.model.load_state_dict(torch.load('./maskRCNN_epoch_2_.pth', map_location = device))
 
