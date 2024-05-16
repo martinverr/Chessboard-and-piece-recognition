@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 from torchvision import models as torchmodels
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-
+from torchvision.models.detection import MaskRCNN_ResNet50_FPN_Weights
 
 class CNN_80x80_2Conv_2Pool_2FC(nn.Module):
     transform = transforms.Compose([
@@ -74,7 +74,7 @@ class MaskRCNN_board(nn.Module):
     def __init__(self):
         super().__init__()
         num_classes = 2
-        self.model = torchmodels.detection.maskrcnn_resnet50_fpn(weight = 'DEFAULT')
+        self.model = torchmodels.detection.maskrcnn_resnet50_fpn(weights=MaskRCNN_ResNet50_FPN_Weights.DEFAULT)
         in_features = self.model.roi_heads.box_predictor.cls_score.in_features
         self.model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
         in_features_mask = self.model.roi_heads.mask_predictor.conv5_mask.in_channels
