@@ -17,9 +17,9 @@ def get_board_with_maskrcnn(image_path, model = None, verbose_show = False):
     if model == None:
         model = MaskRCNN_board() 
         model.model.load_state_dict(torch.load('./maskRCNN_epoch_2_.pth', map_location = device))
+        model.to(device)
+        model.eval()
 
-    model.to(device)
-    model.eval()
 
     img = Image.open(image_path)
     img_bg = cv2.imread(image_path)
@@ -62,4 +62,14 @@ def get_board_with_maskrcnn(image_path, model = None, verbose_show = False):
         cv2.imshow('board detected', img_bg)
         cv2.waitKey()
 
+    # if verbose_show:
+    #     img_copy = cv2.imread(image_path)
+    #     for point in approximated_polygon:
+    #         img_c = img_copy.copy()
+    #         cv2.circle(img_c, point[0], 5, (0, 255, 0), -1)
+    #         cv2.imshow(f'board {point}', img_c)
+    #         cv2.waitKey()
+
+    if len(approximated_polygon) != 4:
+        return None
     return approximated_polygon
