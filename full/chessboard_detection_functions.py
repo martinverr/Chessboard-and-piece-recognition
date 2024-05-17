@@ -226,7 +226,7 @@ def two_points_to_polar(line, verbose=False):
 
     if verbose:
         print(f"points: {(x1, y1)} and {(x2,y2)}")
-        print(f"projection equation: {a:.1f}x + {b:.1f}y + {c:.1f}")
+        # print(f"projection equation: {a:.1f}x + {b:.1f}y + {c:.1f}")
         print(f"projection point: {(proj_x, proj_y)}")
         print(f"rho: {rho:.2f}, theta: {np.degrees(theta)}")
     
@@ -235,19 +235,25 @@ def two_points_to_polar(line, verbose=False):
 def sortLinesByDim(lines, dim):
     return lines[lines[:, dim].argsort()]
 
-def warpingSection(chessLines):
+def warpingSection(chessLines, old_version = False, margins = None):
     """
     Find the delimiter lines of the chessboard.
     To avoid cut pieces after warp, shift those with certain margins (top:70, left:-50, right:50).
 
     Args:
         chessLines (np.ndarray): @see chessLines
+        old_version (bool): use old version
+        margins (list): required margins
 
     Returns:
         np.ndarray: 4 corners points
     """
-    hLines = chessLines.getHLinesClustered()
-    vLines = chessLines.getVLinesClustered()
+    if old_version:
+        hLines = chessLines.getHLinesClustered()
+        vLines = chessLines.getVLinesClustered()
+    else:
+        hLines = chessLines.getHLines()
+        vLines = chessLines.getVLines()
 
     # Trovo il poligono da warpare
     delimiterLines =  np.empty((0,4), dtype=np.float64)
@@ -258,21 +264,23 @@ def warpingSection(chessLines):
 
 
     # top, bottom, left, right margins:
-    margins = [-70, 0, -50, 50]
-    if np.abs(chessLines.mh) < 0.2:
-        margins[2] = 0
-        margins[3] = 0
-    else: 
-        if chessLines.mh < -0.2:
-            margins[3] = 0
-        if chessLines.mh > 0.2:
+    if margins == None:
+        margins = [-70, 0, -50, 50]
+    if old_version:
+        if np.abs(chessLines.mh) < 0.1:
             margins[2] = 0
+            margins[3] = 0
+        else: 
+            if chessLines.mh < -0.1:
+                margins[3] = 0
+            if chessLines.mh > 0.1:
+                margins[2] = 0
     
     #withMargin =  np.empty((0,4), dtype=np.float64)
     for i in range(4):
         if margins[i] != 0:
             # inplace delimiterLines
-            delimiterLines[0] += [margins[i],0,0,0]
+            delimiterLines[i] += [margins[i],0,0,0]
             
             # save in withMargin, delimiterLines untouched
             #newMarginLine = np.copy(delimiterLines[i] + [margins[i],0,0,0])
@@ -286,10 +294,27 @@ def analyze_diff(diff, mean, threshold_two_tiles = 0.1):
     index_line_eliminate = np.array([])
     index_line_to_add = np.array([])
     for index, d in enumerate(diff):
+         # index = -1
+        # while index < len(diff)-1:
+        #     index= index +1
+        #     if diff[index] < 3/4 * mean and index in [0,len(diff)-1]:
+        #         index_line_eliminate = np.append(index_line_eliminate, index)
+        #     elif index < (len(diff) -1):
+        #         if diff[index] < 3/4*mean or diff[index+1] < 3/4*mean:
+        #             if diff[index] <3/4*mean:
+        #                 index_line_eliminate = np.append(index_line_eliminate, index)
+        #                 diff[index] = diff[index+1]+diff[index]
+        #             else:
+        #                 index_line_eliminate = np.append(index_line_eliminate, index+1)
+        #                 diff[index+1] = diff[index+1]+diff[index]
+        #                 index = index +1
         if d < 3/4 * mean:
-            if index in [0, len(diff) - 1]:
+            if index not in [0,len(diff)-1]:
+                diff[index+1] = diff[index+1]+diff[index]
                 index_line_eliminate = np.append(index_line_eliminate, index)
-        elif d > 2*mean * (1 - threshold_two_tiles):
+            else:
+                index_line_eliminate = np.append(index_line_eliminate, index)
+        elif diff[index] > 2*mean * (1 - threshold_two_tiles):
             index_line_to_add = np.append(index_line_to_add, index)
             if index not in [0, len(diff) - 1]:
                 #due tiles insieme - condizione in mezzo alla scacchiera
@@ -303,6 +328,7 @@ def analyze_diff(diff, mean, threshold_two_tiles = 0.1):
                 index_line_eliminate = np.append(index_line_eliminate, index+1)
                 print("si tratta di un tile + bordo. index: "+ str(index))
         '''
+    print(index_line_eliminate)
     return index_line_eliminate, index_line_to_add
 
 
@@ -317,6 +343,8 @@ def process_lines(eliminate, add, lines, mean, dim, axes):
             o_lines = np.delete(o_lines, int(e), axis=0)
         if e == lines.shape[0] - 2:
             o_lines = np.delete(o_lines, o_lines.shape[0] - 1, axis=0)
+        elif e != 0 and e != lines.shape[0] - 2: 
+            o_lines = np.delete(o_lines, int(e), axis=0)
 
     for a in add:
         axis2, axis3 = lines[int(a), 2], lines[int(a), 3]
@@ -340,8 +368,7 @@ def process_lines(eliminate, add, lines, mean, dim, axes):
 
 def most_frequent_in_bined_array(arr, bin_size = 3):
     # given x return 0, 3, 6,... depending on belonging interval [0-2.99], [3-5.99], ...
-    round_to_bin = lambda x, bin_size: np.around((x / bin_size) * bin_size)
-    
+    round_to_bin = lambda x, bin_size: (np.around(x / bin_size) * bin_size)
     # Approssima i numeri ai bin e conta le occorrenze
     rounded_arr = np.array([round_to_bin(x, bin_size) for x in arr])
     counter = Counter(rounded_arr)
@@ -361,13 +388,13 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     h_diff = np.diff(hdim)
     v_diff = np.diff(vdim)
     
-    h_freq = most_frequent_in_bined_array(h_diff)
-    v_freq = most_frequent_in_bined_array(v_diff)
-    h_mean = np.mean(h_diff)
-    v_mean = np.mean(v_diff)
-    
-    h_eliminate, h_add = analyze_diff(h_diff, h_mean)
-    v_eliminate, v_add = analyze_diff(v_diff,v_mean)
+    h_freq = most_frequent_in_bined_array(h_diff[1:-2])
+    v_freq = most_frequent_in_bined_array(v_diff[1:-2])
+
+    h_mean = np.mean(h_diff[1:-2])
+    v_mean = np.mean(v_diff[1:-2])
+    h_eliminate, h_add = analyze_diff(h_diff, h_freq)
+    v_eliminate, v_add = analyze_diff(v_diff,v_freq)
 
     hlines = process_lines(eliminate= h_eliminate, add=h_add, lines=hlines, mean=h_freq, dim=H, axes=3)
     vlines = process_lines(eliminate= v_eliminate, add=v_add, lines=vlines, mean=v_freq, dim=W, axes=2)
