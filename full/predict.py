@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from models import *
-from retrieval import *
+from retrieval import retrieval
 import sys
 
 
@@ -122,11 +122,16 @@ def main():
         true_fen = None
 
     # retrieve warped chessboard
-    warpedBoardImg = board_detection(img_path)
+    warpedBoardImg = board_detection(img_path, old_version=True, verbose_show=True)
     if warpedBoardImg is None:
         print('Error 1st preprocessing pass (Chessboard warping)')
         exit(-2)
-    
+    # maskrcnn warping
+    warpedBoardImg = board_detection(img_path, old_version=False, verbose_show=True)
+    if warpedBoardImg is None:
+        print('Error 1st preprocessing pass (Chessboard warping)')
+        exit(-2)
+
     # Square detection and extraction
     grid_squares = grid_detection(warpedBoardImg, view, verbose_show=True)
     if grid_squares is None:
