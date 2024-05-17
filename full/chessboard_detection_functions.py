@@ -328,7 +328,6 @@ def analyze_diff(diff, mean, threshold_two_tiles = 0.1):
                 index_line_eliminate = np.append(index_line_eliminate, index+1)
                 print("si tratta di un tile + bordo. index: "+ str(index))
         '''
-    print(index_line_eliminate)
     return index_line_eliminate, index_line_to_add
 
 
