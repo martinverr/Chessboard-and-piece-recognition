@@ -32,9 +32,10 @@ def auto_canny(image, sigma=0.33, verbose=False):
     # return the edged image
     return edged
 
+
 def hor_vert_lines(lines):
     """
-    A line is given by rho and theta. Given a list of lines, returns a list of
+    Given a list of lines, returns a list of
     horizontal lines (theta=90 deg) and a list of vertical lines (theta=0 deg).
     """
     h = []
@@ -46,10 +47,11 @@ def hor_vert_lines(lines):
             h.append([distance, angle])
     return h, v
 
+
 def intersections(h, v):
     """
-    Given lists of horizontal and vertical lines in (rho, theta) form, returns list
-    of (x, y) intersection points.
+    Given lists of horizontal and vertical lines in (rho, theta) form, returns numpy list
+    of (x, y) intersection points (shape (n, 2))
     """
     points = []
     for d1, a1 in h:
@@ -60,19 +62,6 @@ def intersections(h, v):
             points.append(point)
     return np.array(points)
 
-def cluster(points, max_dist=50):
-    """
-    Given a list of points, returns a list of cluster centers.
-    """
-    Y = spatial.distance.pdist(points)
-    Z = clstr.hierarchy.single(Y)
-    T = clstr.hierarchy.fcluster(Z, max_dist, 'distance')
-    clusters = defaultdict(list)
-    for i in range(len(T)):
-        clusters[T[i]].append(points[i])
-    clusters = clusters.values()
-    clusters = map(lambda arr: (np.mean(np.array(arr)[:,0]), np.mean(np.array(arr)[:,1])), clusters)
-    return clusters
 
 def closest_point(points, loc):
     """
@@ -81,9 +70,10 @@ def closest_point(points, loc):
     dists = np.array(list(map(partial(spatial.distance.euclidean(points, loc)), points)))
     return points[dists.argmin()]
 
+
 def find_corners(points, mh):
     """
-    Given a list of points, returns a list containing the four corner points.
+    Given a list of candidate points, returns a list containing the four corner points.
     """
     points = [x for x in points if (x[0] >= 0 and x[1] >= 0)] #remove points with x or y <0
     if np.abs(mh) > 0.1:
@@ -102,8 +92,8 @@ def find_corners(points, mh):
             top_right, _ = min(enumerate([pt[1] for pt in points]), key=operator.itemgetter(1))
             corners = [points[top_left], points[top_right], points[bottom_left], points[bottom_right]]
 
+    #scacchiera dritta
     else: 
-        #scacchiera dritta
         # Bottom-right point has the largest (x + y) value
         # Top-left has point smallest (x + y) value
         # Bottom-left point has smallest (x - y) value
@@ -117,9 +107,11 @@ def find_corners(points, mh):
         corners = [points[top_left], points[top_right], points[bottom_left], points[bottom_right]]
     return corners
 
+
 def four_point_transform(img, points, dim_wrap_img):
-    #pts1 = np.float32(points)
-    #ritaglio con 5px di "padding"
+    """
+    Warp the img given the 4 corner points
+    """
     pts1 = np.float32([[points[0][0]-5,points[0][1]-5], [points[1][0]+5,points[1][1]-5], [points[2][0]-5,points[2][1]+5], [points[3][0]+5,points[3][1]+5]])
     pts2 = np.float32([[0, 0], [dim_wrap_img[0], 0], [0, dim_wrap_img[1]], [dim_wrap_img[0], dim_wrap_img[1]]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
@@ -139,19 +131,9 @@ def output_lines(img, lines, color):
         y2 = int(y0 - 4000*(a))
         cv2.line(img,(x1,y1),(x2,y2),color,2)
 
-def split_board(img):
-    """
-    Given a board image, returns an array of 64 smaller images.
-    """
-    arr = []
-    sq_len = img.shape[0] / 8
-    for i in range(8):
-        for j in range(8):
-            arr.append(img[i * sq_len : (i + 1) * sq_len, j * sq_len : (j + 1) * sq_len])
-    return arr
-
 
 def removeOutLiers(lines, grid_pass=False):
+
     angles_degree = np.ndarray(shape=(1,1), dtype=np.double)
     
     for line in lines:
@@ -186,11 +168,6 @@ def removeOutLiers(lines, grid_pass=False):
         filtered_lines = lines[~(np.logical_or(np.abs(angles_degree[1:]) >= (freq_m + 5), np.abs(angles_degree[1:]) < (freq_m - 5))).reshape(-1)]
         return filtered_lines, removed_lines
     else:
-        #mean_m = m_sum / lines.shape[0]
-        #mean_m = most_frequent_in_bined_array(angles_degree[1:].reshape(-1).tolist(), bin_size=1)
-        '''trimmed_count = int(len(angles_degree[1:]) * 0.1)
-        sorted_angles = np.sort(angles_degree[1:])
-        mean_m = np.mean(sorted_angles[1+trimmed_count:-trimmed_count])'''
         mean_m = np.mean(angles_degree[1:])
         std = np.std(angles_degree[1:])
         removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5*std).reshape(-1)]
@@ -198,6 +175,10 @@ def removeOutLiers(lines, grid_pass=False):
         return filtered_lines, removed_lines
 
 def abc_line_eq_coeffs(line):
+    """
+    Given a line in format (x1, y1, x2, y2), return coefficients of equation
+    ax + by + c
+    """
     x1, y1, x2, y2 = line
 
     direction_vector = np.array([x2 - x1, y2 - y1])
@@ -211,6 +192,10 @@ def abc_line_eq_coeffs(line):
 
 
 def projection_point_from_origin(line):
+    """
+    Given a line in format (a,b,c) @see abc_line_eq_coeffs, return the projection point of the
+    origin on the line
+    """
     a, b, c = abc_line_eq_coeffs(line)
     
     length_squared = a**2 + b**2
@@ -223,7 +208,8 @@ def projection_point_from_origin(line):
 
     return proj_x, proj_y
 
-def two_points_to_polar(line):
+
+def two_points_to_polar(line, verbose=False):
     # Get points from the vector
     x1, y1, x2, y2 = line
 
@@ -238,28 +224,36 @@ def two_points_to_polar(line):
         rho = np.sqrt(proj_x**2 + proj_y**2)
         theta = np.arctan2(proj_y, proj_x)
 
-    #print(f"points: {(x1, y1)} and {(x2,y2)}")
-    #print(f"projection equation: {a:.1f}x + {b:.1f}y + {c:.1f}")
-    #print(f"projection point: {(proj_x, proj_y)}")
-    #print(f"rho: {rho:.2f}, theta: {np.degrees(theta)}")
+    if verbose:
+        print(f"points: {(x1, y1)} and {(x2,y2)}")
+        # print(f"projection equation: {a:.1f}x + {b:.1f}y + {c:.1f}")
+        print(f"projection point: {(proj_x, proj_y)}")
+        print(f"rho: {rho:.2f}, theta: {np.degrees(theta)}")
+    
     return np.array([rho, theta])
 
 def sortLinesByDim(lines, dim):
     return lines[lines[:, dim].argsort()]
 
-def warpingSection(chessLines):
+def warpingSection(chessLines, old_version = False, margins = None):
     """
     Find the delimiter lines of the chessboard.
     To avoid cut pieces after warp, shift those with certain margins (top:70, left:-50, right:50).
 
     Args:
         chessLines (np.ndarray): @see chessLines
+        old_version (bool): use old version
+        margins (list): required margins
 
     Returns:
         np.ndarray: 4 corners points
     """
-    hLines = chessLines.getHLinesClustered()
-    vLines = chessLines.getVLinesClustered()
+    if old_version:
+        hLines = chessLines.getHLinesClustered()
+        vLines = chessLines.getVLinesClustered()
+    else:
+        hLines = chessLines.getHLines()
+        vLines = chessLines.getVLines()
 
     # Trovo il poligono da warpare
     delimiterLines =  np.empty((0,4), dtype=np.float64)
@@ -270,21 +264,23 @@ def warpingSection(chessLines):
 
 
     # top, bottom, left, right margins:
-    margins = [-70, 0, -50, 50]
-    if np.abs(chessLines.mh) < 0.2:
-        margins[2] = 0
-        margins[3] = 0
-    else: 
-        if chessLines.mh < -0.2:
-            margins[3] = 0
-        if chessLines.mh > 0.2:
+    if margins == None:
+        margins = [-70, 0, -50, 50]
+    if old_version:
+        if np.abs(chessLines.mh) < 0.1:
             margins[2] = 0
+            margins[3] = 0
+        else: 
+            if chessLines.mh < -0.1:
+                margins[3] = 0
+            if chessLines.mh > 0.1:
+                margins[2] = 0
     
     #withMargin =  np.empty((0,4), dtype=np.float64)
     for i in range(4):
         if margins[i] != 0:
             # inplace delimiterLines
-            delimiterLines[0] += [margins[i],0,0,0]
+            delimiterLines[i] += [margins[i],0,0,0]
             
             # save in withMargin, delimiterLines untouched
             #newMarginLine = np.copy(delimiterLines[i] + [margins[i],0,0,0])
@@ -298,17 +294,38 @@ def analyze_diff(diff, mean, threshold_two_tiles = 0.1):
     index_line_eliminate = np.array([])
     index_line_to_add = np.array([])
     for index, d in enumerate(diff):
+         # index = -1
+        # while index < len(diff)-1:
+        #     index= index +1
+        #     if diff[index] < 3/4 * mean and index in [0,len(diff)-1]:
+        #         index_line_eliminate = np.append(index_line_eliminate, index)
+        #     elif index < (len(diff) -1):
+        #         if diff[index] < 3/4*mean or diff[index+1] < 3/4*mean:
+        #             if diff[index] <3/4*mean:
+        #                 index_line_eliminate = np.append(index_line_eliminate, index)
+        #                 diff[index] = diff[index+1]+diff[index]
+        #             else:
+        #                 index_line_eliminate = np.append(index_line_eliminate, index+1)
+        #                 diff[index+1] = diff[index+1]+diff[index]
+        #                 index = index +1
         if d < 3/4 * mean:
-            if index in [0, len(diff) - 1]:
-                index_line_eliminate = np.append(index_line_eliminate, index)
-        elif d > 2*mean * (1 - threshold_two_tiles):
+            if index not in [0,len(diff)-1]:
+                diff[index+1] = diff[index+1]+diff[index]
+                index_line_eliminate = np.append(index_line_eliminate, index+1)
+            else:
+                if index == 0:
+                    index_line_eliminate = np.append(index_line_eliminate, index)
+                elif index == len(diff)-1:
+                    index_line_eliminate = np.append(index_line_eliminate, index+1)
+
+        '''elif diff[index] > 2*mean * (1 - threshold_two_tiles):
             index_line_to_add = np.append(index_line_to_add, index)
             if index not in [0, len(diff) - 1]:
                 #due tiles insieme - condizione in mezzo alla scacchiera
                 pass
             else:
                 #due tiles insieme - ai bordi della scacchiera
-                pass
+                pass'''
         '''elif mean + mean / 4 <= d <= 2 * mean - 2 * mean * threshold_two_tiles: #else
             if index in [0, len(diff) - 1]:
                 index_line_to_add = np.append(index_line_to_add, index)
@@ -323,12 +340,8 @@ def process_lines(eliminate, add, lines, mean, dim, axes):
     if axes not in [2,3]:
         print("errore di input su quale valore fare le operazioni nell'array delle line")
         return
-
-    for e in eliminate:
-        if e == 0:
-            o_lines = np.delete(o_lines, int(e), axis=0)
-        if e == lines.shape[0] - 2:
-            o_lines = np.delete(o_lines, o_lines.shape[0] - 1, axis=0)
+    
+    o_lines = np.delete(o_lines, eliminate.astype(np.int64), axis=0)
 
     for a in add:
         axis2, axis3 = lines[int(a), 2], lines[int(a), 3]
@@ -352,14 +365,57 @@ def process_lines(eliminate, add, lines, mean, dim, axes):
 
 def most_frequent_in_bined_array(arr, bin_size = 3):
     # given x return 0, 3, 6,... depending on belonging interval [0-2.99], [3-5.99], ...
-    round_to_bin = lambda x, bin_size: np.around((x / bin_size) * bin_size)
-    
+    round_to_bin = lambda x, bin_size: (np.around(x / bin_size) * bin_size)
     # Approssima i numeri ai bin e conta le occorrenze
     rounded_arr = np.array([round_to_bin(x, bin_size) for x in arr])
     counter = Counter(rounded_arr)
 
     # Trova il bin con il conteggio più alto
     return counter.most_common(1)[0][0]
+
+def analyze_diff_v2(data, reference_distance):
+    import itertools
+
+    pair_distances = []
+    for (i, a), (j, b) in itertools.combinations(enumerate(data), 2):
+        distance = abs(a - b)
+        pair_distances.append((distance, i, j))
+
+    # Sort the pairs by how close their distance is to the reference distance
+    pair_distances.sort(key=lambda x: abs(x[0] - reference_distance))
+
+    #remove outlier
+    pair_distances = [pair for pair in pair_distances if pair[0] > ((4/5)*reference_distance) and pair[0] < ((6/5)*reference_distance)]
+
+
+    # Collect the unique indices of the pairs until we get 9 indices
+    selected_indices = set()
+    for distance, i, j in pair_distances:
+        if len(selected_indices) < 9:
+            selected_indices.add(i)
+            if len(selected_indices) < 9:
+                selected_indices.add(j)
+        else:
+            break
+
+    # Ensure selected indices are sorted
+    selected_indices = sorted(selected_indices)
+
+    # Check if the distances between consecutive values in selected_indices are within the specified range
+    for k in range(len(selected_indices) - 1):
+        i = selected_indices[k]
+        j = selected_indices[k + 1]
+        if not ((4/5)*reference_distance < abs(data[i] - data[j]) < (6/5)*reference_distance):
+            #Error
+            #Decide to delete all lines to rise error
+            all_indices = list(range(len(data)))
+            return np.array(all_indices)
+            
+
+    all_indices = list(range(len(data)))
+    to_be_deleted = [index for index in all_indices if index not in selected_indices]
+
+    return np.array(to_be_deleted)
 
 
 def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_plus_edge = 0.1, verbose = False):
@@ -373,16 +429,20 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     h_diff = np.diff(hdim)
     v_diff = np.diff(vdim)
     
-    h_freq = most_frequent_in_bined_array(h_diff)
-    v_freq = most_frequent_in_bined_array(v_diff)
-    h_mean = np.mean(h_diff)
-    v_mean = np.mean(v_diff)
-    
-    h_eliminate, h_add = analyze_diff(h_diff, h_mean)
-    v_eliminate, v_add = analyze_diff(v_diff,v_mean)
+    h_freq = most_frequent_in_bined_array(h_diff[1:-1])
+    v_freq = most_frequent_in_bined_array(v_diff[1:-1])
 
-    hlines = process_lines(eliminate= h_eliminate, add=h_add, lines=hlines, mean=h_freq, dim=H, axes=3)
-    vlines = process_lines(eliminate= v_eliminate, add=v_add, lines=vlines, mean=v_freq, dim=W, axes=2)
+    h_mean = np.mean(h_diff[1:-2])
+    v_mean = np.mean(v_diff[1:-2])
+    
+    h_eliminate = analyze_diff_v2(hdim, h_freq)
+    v_eliminate = analyze_diff_v2(vdim, v_freq)
+    
+    #h_eliminate, h_add = analyze_diff(h_diff, h_freq)
+    #v_eliminate, v_add = analyze_diff(v_diff,v_freq)
+
+    hlines = process_lines(eliminate= h_eliminate, add=[], lines=hlines, mean=h_freq, dim=H, axes=3)
+    vlines = process_lines(eliminate= v_eliminate, add=[], lines=vlines, mean=v_freq, dim=W, axes=2)
 
     if verbose:
         output_lines(img_copy, hlines, (255,0,0))
@@ -484,7 +544,19 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
 
                 square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image], dtype=object)
                 if debug_mode:
-                    square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c)], dtype=object)
+                    #square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c)], dtype=object)
+
+                
+                    imgcopy = img.copy()
+                    bbox_points = calculate_bbox(polypoints, r, c).reshape((1, 4, 2))
+                    polypoints = polypoints.reshape((1, 4, 2))
+                    cv2.polylines(imgcopy, [polypoints[0][[0,1,3,2]]], isClosed=True, color=(0,200,0), thickness=2)
+                    color = tuple(np.random.randint(0, 256, 3).tolist())  # Random color
+                    cv2.polylines(imgcopy, [bbox_points[0][[0,1,3,2]]], isClosed=True, color=(0,255,0), thickness=2)
+                    
+                    cv2.imshow(f'Bbox', imgcopy)
+                    cv2.waitKey(0)
+        
                 squares_info[square_counter - 1] = square_info
 
     return squares_info

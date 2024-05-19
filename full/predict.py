@@ -4,7 +4,8 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 from models import *
-from retrieval_test import *
+from retrieval import retrieval
+import sys
 
 
 def occupation_classify(model, x):
@@ -39,7 +40,7 @@ def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual
         
     Return
     ------
-    dictiornary of occupied squares as pair <coords: piece>
+    dictionary of occupied squares as pair <coords: piece>
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = torch.load(f"{model_saves_path}{model_name}.pth")
@@ -94,47 +95,63 @@ def print_result(predicted_fen, true_fen=None):
     
     print(f"\n{'#'*32}\n")
     
-    
+
+def print_differencies_cnn_retr(cnn_prediction, retrieval_prediction):
+    print("\nDifferencies between cnn and retrieval predictions:")
+    some_differences = False
+    for coord, pred in retrieval_prediction.items():
+        if cnn_prediction[coord] != pred:
+            some_differences = True
+            print(coord, ' cnn: ', cnn_prediction[coord], ' retrieval: ', pred)
+    if some_differences == False:
+        print('No differences found')    
+
     
 def main():
-    img_path = './input/0001.png'
-    view = 'white'
-    #optional:
-    true_fen = "r2q1rk1/pp2npbp/3p1np1/P2pp3/2P1P1b1/2N2NP1/1P3PBP/R1BQ1RK1"
-    
-    
-    warpedBoardImg = board_detection(img_path, '0000', verbose_show=False)
+    # check command syntax
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Syntax error: predict.py <img path> <'white'|'black'> [fen]")
+        exit(-1)
+
+    # parse command
+    img_path = sys.argv[1]
+    view = sys.argv[2]
+    if len(sys.argv) == 4:
+        true_fen = sys.argv[3]
+    else:
+        true_fen = None
+
+    # retrieve warped chessboard
+    warpedBoardImg = board_detection(img_path, old_version=True, verbose_show=True)
     if warpedBoardImg is None:
         print('Error 1st preprocessing pass (Chessboard warping)')
-        exit(-1)
-    
-    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=False)
+        exit(-2)
+    # maskrcnn warping
+    warpedBoardImg = board_detection(img_path, old_version=False, verbose_show=True)
+    if warpedBoardImg is None:
+        print('Error 1st preprocessing pass (Chessboard warping)')
+        exit(-2)
+
+    # Square detection and extraction
+    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=True)
     if grid_squares is None:
         print('Error in 2nd preprocessing pass (Squares detection)')
-        exit(-2)
+        exit(-3)
     
-    predicted_pos_cnn, predicted_pos_retrievel = predict(grid_squares)
-    predicted_fen = FEN.dict_to_fen(predicted_pos_cnn)
-    truth = FEN.fen_to_dict(true_fen)
-
+    # predict chessboard position with cnn and retrieval
+    cnn_prediction, retrieval_prediction = predict(grid_squares)
+    
+    # show results cnn prediction
+    predicted_fen = FEN.dict_to_fen(cnn_prediction)
     print_result(predicted_fen, true_fen)
 
-    for coord, pred in predicted_pos_retrievel.items():
+    # show results retrival prediction
+    for coord, pred in retrieval_prediction.items():
         print(coord, ' --> ', pred)
 
-    print("\ndifferent predictions between cnn and retrieval")
-    some_differences = False
-    for coord, pred in predicted_pos_retrievel.items():
-        if predicted_pos_cnn[coord] != pred:
-            some_differences = True
-            print(coord, ' cnn: ', predicted_pos_cnn[coord], ' retrieval: ', pred)
-    if some_differences == False:
-        print('no differences found')
+    # show different prediction
+    print_differencies_cnn_retr(cnn_prediction, retrieval_prediction)
 
-    
-            
-
-        
 
 if __name__ == "__main__":
     main()
