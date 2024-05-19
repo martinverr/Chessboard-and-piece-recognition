@@ -209,7 +209,7 @@ def _board_detection_maskrcnn(fname : str, verbose_show=False, model = None):
         cv2.waitKey(0)
     
     img_for_wrap = cv2.imread(fname)
-    warpingSectionCorners = warpingSection(chessLines, margins= [-70, 50, -50, 50])
+    warpingSectionCorners = warpingSection(chessLines, margins= [-70, 40, -40, 40])
     new_img = four_point_transform(img_for_wrap, warpingSectionCorners, (700, 700 + 100))
 
     if verbose_show:
@@ -249,19 +249,19 @@ def grid_detection(img, viewpoint, verbose_show=False):
     
     assert img is not None
     bilateral_img = img.copy()
-    bilateral_img = cv2.bilateralFilter(img, 3, 40, 80)
+    bilateral_img = cv2.bilateralFilter(img, 9, 75, 75)
     if verbose_show:
         cv2.imshow(f"bilateral filter", bilateral_img)
         cv2.waitKey(0)
 
     gray = cv2.cvtColor(bilateral_img, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 50, 350, apertureSize=3)
+    edges = cv2.Canny(gray, 45, 350, apertureSize=3)
     if verbose_show:
         cv2.imshow(f"grid_detection: cannied", edges)
         cv2.waitKey(0)
     
     # Hough line prob detection
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 65, minLineLength=30, maxLineGap=50)
+    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 50, minLineLength=30, maxLineGap=50)
     lines = np.reshape(lines, (-1, 4))
     lines = np.array([two_points_to_polar(line) for line in lines])
     
@@ -362,7 +362,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
     # Squares Extraction
     squares = extract_squares(img, points, viewpoint, debug_mode=verbose_show)
  
-    if verbose_show:
+    if False:
         for square_coord, squareimg, bboximg in squares[:, 1:]:
             squareimg2 = squareimg.copy()
             cv2.putText(squareimg2,
@@ -382,6 +382,7 @@ def grid_detection(img, viewpoint, verbose_show=False):
             cv2.imshow(f'Square', bboximg2)
             cv2.waitKey(0)
     
+    cv2.destroyAllWindows()
     return squares
 
 
@@ -398,14 +399,14 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = MaskRCNN_board() 
-    model.model.load_state_dict(torch.load('./maskRCNN_epoch_2_.pth', map_location = device))
+    model.model.load_state_dict(torch.load('./maskRCNN_epoch_4_.pth', map_location = device))
     model.to(device)
     model.eval()
     
 
-    input_imgs = glob.glob('./input/**.png')
+    input_imgs = glob.glob('./input/****.png')
     print(f"INPUT IMGS : {input_imgs}")
-    for input_img in input_imgs[:10]:
+    for input_img in input_imgs[:100]:
         analyzed_img = analyzed_img +1
         if not os.path.isfile(input_img):
             continue

@@ -311,17 +311,21 @@ def analyze_diff(diff, mean, threshold_two_tiles = 0.1):
         if d < 3/4 * mean:
             if index not in [0,len(diff)-1]:
                 diff[index+1] = diff[index+1]+diff[index]
-                index_line_eliminate = np.append(index_line_eliminate, index)
+                index_line_eliminate = np.append(index_line_eliminate, index+1)
             else:
-                index_line_eliminate = np.append(index_line_eliminate, index)
-        elif diff[index] > 2*mean * (1 - threshold_two_tiles):
+                if index == 0:
+                    index_line_eliminate = np.append(index_line_eliminate, index)
+                elif index == len(diff)-1:
+                    index_line_eliminate = np.append(index_line_eliminate, index+1)
+
+        '''elif diff[index] > 2*mean * (1 - threshold_two_tiles):
             index_line_to_add = np.append(index_line_to_add, index)
             if index not in [0, len(diff) - 1]:
                 #due tiles insieme - condizione in mezzo alla scacchiera
                 pass
             else:
                 #due tiles insieme - ai bordi della scacchiera
-                pass
+                pass'''
         '''elif mean + mean / 4 <= d <= 2 * mean - 2 * mean * threshold_two_tiles: #else
             if index in [0, len(diff) - 1]:
                 index_line_to_add = np.append(index_line_to_add, index)
@@ -336,14 +340,8 @@ def process_lines(eliminate, add, lines, mean, dim, axes):
     if axes not in [2,3]:
         print("errore di input su quale valore fare le operazioni nell'array delle line")
         return
-
-    for e in eliminate:
-        if e == 0:
-            o_lines = np.delete(o_lines, int(e), axis=0)
-        if e == lines.shape[0] - 2:
-            o_lines = np.delete(o_lines, o_lines.shape[0] - 1, axis=0)
-        elif e != 0 and e != lines.shape[0] - 2: 
-            o_lines = np.delete(o_lines, int(e), axis=0)
+    
+    o_lines = np.delete(o_lines, eliminate.astype(np.int64), axis=0)
 
     for a in add:
         axis2, axis3 = lines[int(a), 2], lines[int(a), 3]
@@ -375,6 +373,50 @@ def most_frequent_in_bined_array(arr, bin_size = 3):
     # Trova il bin con il conteggio più alto
     return counter.most_common(1)[0][0]
 
+def analyze_diff_v2(data, reference_distance):
+    import itertools
+
+    pair_distances = []
+    for (i, a), (j, b) in itertools.combinations(enumerate(data), 2):
+        distance = abs(a - b)
+        pair_distances.append((distance, i, j))
+
+    # Sort the pairs by how close their distance is to the reference distance
+    pair_distances.sort(key=lambda x: abs(x[0] - reference_distance))
+
+    #remove outlier
+    pair_distances = [pair for pair in pair_distances if pair[0] > ((4/5)*reference_distance) and pair[0] < ((6/5)*reference_distance)]
+
+
+    # Collect the unique indices of the pairs until we get 9 indices
+    selected_indices = set()
+    for distance, i, j in pair_distances:
+        if len(selected_indices) < 9:
+            selected_indices.add(i)
+            if len(selected_indices) < 9:
+                selected_indices.add(j)
+        else:
+            break
+
+    # Ensure selected indices are sorted
+    selected_indices = sorted(selected_indices)
+
+    # Check if the distances between consecutive values in selected_indices are within the specified range
+    for k in range(len(selected_indices) - 1):
+        i = selected_indices[k]
+        j = selected_indices[k + 1]
+        if not ((4/5)*reference_distance < abs(data[i] - data[j]) < (6/5)*reference_distance):
+            #Error
+            #Decide to delete all lines to rise error
+            all_indices = list(range(len(data)))
+            return np.array(all_indices)
+            
+
+    all_indices = list(range(len(data)))
+    to_be_deleted = [index for index in all_indices if index not in selected_indices]
+
+    return np.array(to_be_deleted)
+
 
 def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_plus_edge = 0.1, verbose = False):
     img_copy =img.copy()
@@ -387,16 +429,20 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     h_diff = np.diff(hdim)
     v_diff = np.diff(vdim)
     
-    h_freq = most_frequent_in_bined_array(h_diff[1:-2])
-    v_freq = most_frequent_in_bined_array(v_diff[1:-2])
+    h_freq = most_frequent_in_bined_array(h_diff[1:-1])
+    v_freq = most_frequent_in_bined_array(v_diff[1:-1])
 
     h_mean = np.mean(h_diff[1:-2])
     v_mean = np.mean(v_diff[1:-2])
-    h_eliminate, h_add = analyze_diff(h_diff, h_freq)
-    v_eliminate, v_add = analyze_diff(v_diff,v_freq)
+    
+    h_eliminate = analyze_diff_v2(hdim, h_freq)
+    v_eliminate = analyze_diff_v2(vdim, v_freq)
+    
+    #h_eliminate, h_add = analyze_diff(h_diff, h_freq)
+    #v_eliminate, v_add = analyze_diff(v_diff,v_freq)
 
-    hlines = process_lines(eliminate= h_eliminate, add=h_add, lines=hlines, mean=h_freq, dim=H, axes=3)
-    vlines = process_lines(eliminate= v_eliminate, add=v_add, lines=vlines, mean=v_freq, dim=W, axes=2)
+    hlines = process_lines(eliminate= h_eliminate, add=[], lines=hlines, mean=h_freq, dim=H, axes=3)
+    vlines = process_lines(eliminate= v_eliminate, add=[], lines=vlines, mean=v_freq, dim=W, axes=2)
 
     if verbose:
         output_lines(img_copy, hlines, (255,0,0))
