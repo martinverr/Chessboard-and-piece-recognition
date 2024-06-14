@@ -43,6 +43,7 @@ if __name__ == "__main__":
     print(input_imgs)
 
     threshold = 0.8
+    false_negative = []
     true_positive = []
     total = len(input_imgs)
 
@@ -75,11 +76,14 @@ if __name__ == "__main__":
         iou = calculate_iou(mask_predicted, mask_gt)
         if iou > threshold:
             true_positive.append(iou)
+        else:
+            false_negative.append(iou)
 
     # calculate medan iou
     mean_iou = sum(true_positive) / len(true_positive)
     print(f"Mean iou: {mean_iou}")
-    print(f"Number of positive with threhold {threshold}: {len(true_positive)}")
+    print(f"Number of true positive with threhold {threshold}: {len(true_positive)}")
+    print(f"Number of false negative with threshold {threshold}: {len(false_negative)}")
     print(f"Total number of samples: {total}")
 
         
