@@ -9,7 +9,8 @@ from retrieval import retrieval
 import sys
 import json
 
-class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop']
+# class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop'] resnet 50
+class_names = ['b_Pawn','b_Bishop','b_Knight','b_Rook','b_Queen','b_King', 'w_King','w_Queen','w_Rook','w_Knight','w_Bishop','w_Pawn']
 
 def occupation_classify(model, x):
     model.eval()
@@ -22,7 +23,8 @@ def occupation_classify(model, x):
 
 def pieces_classify(model, x):
     model.eval()
-    class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop']
+    # class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop'] resnet 50
+    class_names = ['b_Pawn','b_Bishop','b_Knight','b_Rook','b_Queen','b_King', 'w_King','w_Queen','w_Rook','w_Knight','w_Bishop','w_Pawn']
     with torch.no_grad():
         y = model(x)
         #display(torch.max(output, 1))
@@ -46,17 +48,14 @@ def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual
     dictionary of occupied squares as pair <coords: piece>
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = torch.load(f"{model_saves_path}{model_name}.pth")
+    model = torch.load(f"{model_saves_path}{model_name}.pth", map_location=device )
     model2 = torch.load(f"{model_saves_path}{model2_name}.pth", map_location=device)
 
 
     occupation_cnn_input = torch.empty([64, 3, 80, 80])
-    try:
-        for i, img in squares[:,[0,2]]:
-            img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-            occupation_cnn_input[i-1] = model.transform(img).reshape([1, 3, 80, 80])
-    except:
-        return None, None
+    for i, img in squares[:,[0,2]]:
+        img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        occupation_cnn_input[i-1] = model.transform(img).reshape([1, 3, 80, 80])
     
     occupation_prediction = occupation_classify(model, occupation_cnn_input)[0]
     
@@ -130,13 +129,26 @@ def print_differencies_cnn_retr(cnn_prediction, retrieval_prediction):
         print('No differences found')    
 
 def return_accuracy(predicted_fen, true_fen=None):
+    #print(f"{' RESULT ':#^32}")
+    #print(f"{'Predicted FEN:':<15}{predicted_fen}")
+    #FEN.print_from_FEN(predicted_fen)
     
     if true_fen is not None:    
         diff_dict = result(predicted_fen, true_fen)
+        
         if len(diff_dict) == 0:
-            accuracy = 0
+            #print("No Errors\nAcc: 100%")
+            accuracy = 1
         else:
             accuracy = 1-len(diff_dict)/64
+            # print(f"Accuracy: {1-len(diff_dict)/64:.1%}")
+            print(f"{len(diff_dict)} Errors:")
+            print(f"{'Square':^8}|{'Predicted':^12}|{'Truth':^10}")
+            for square, piece_pair in diff_dict.items():
+                pred, true = piece_pair
+                print(f"{square:^8}|{pred:^12}|{true:^10}")
+    
+    #print(f"\n{'#'*32}\n")
     return accuracy
 
     
@@ -186,6 +198,9 @@ def main():
     print_differencies_cnn_retr(cnn_prediction, retrieval_prediction)
 
 def main_ensamble():
+
+    ensamble = True
+
     img_paths = glob.glob('./test/**.png')
     trues_fen = []
     views = []
@@ -208,7 +223,7 @@ def main_ensamble():
 
     
     for index, img_path in enumerate(img_paths):
-        print(index)
+        print(f"Img: {img_path}")
         # retrieve warped chessboard
         warpedBoardImg_old_version = board_detection(img_path, old_version=True, verbose_show=False)
         if warpedBoardImg_old_version is None:
@@ -230,15 +245,15 @@ def main_ensamble():
             continue
 
         grid_squares_new_version = grid_detection(warpedBoardImg_new_version, views[index], verbose_show=False)
-        if grid_squares_old_version is None:
+        if grid_squares_new_version is None:
             print('Error in 2nd preprocessing pass (Squares detection)')
             err_grid_detection_new += 1
             continue
         
         
         # predict chessboard position with cnn and retrieval
-        cnn_prediction_old, _ = predict(grid_squares_old_version, ensamble=True)
-        cnn_prediction_new, _ = predict(grid_squares_new_version, ensamble = True)
+        cnn_prediction_old, _ = predict(grid_squares_old_version, ensamble=ensamble, model_name = "Occupancy_CNN_80x80_2Conv_2Pool_2FC", model2_name ="ResNet18_80x160", model_saves_path = './scratch-cnn/modelsaves3/')
+        cnn_prediction_new, _ = predict(grid_squares_new_version, ensamble =ensamble, model_name = "Occupancy_CNN_80x80_2Conv_2Pool_2FC", model2_name ="ResNet18_80x160", model_saves_path = './scratch-cnn/modelsaves3/')
 
         if cnn_prediction_new is None or cnn_prediction_old is None:
             continue
@@ -252,26 +267,27 @@ def main_ensamble():
         accuracies_new.append(return_accuracy(predicted_fen_new, trues_fen[index]))
 
     mean_accuracy_old = np.array(accuracies_old).mean()
-    perfect_fen_old = np.count_nonzero(100)
+    perfect_fen_old = accuracies_old.count(1)
     correct_fen_accuracy_old = perfect_fen_old/len(img_paths)
 
+    print(f"--------------------- ENSAMBLE {ensamble} ----------------")
     print(f'Test on {len(img_paths)}')
     print(f'Number of accuracies: {len(accuracies_old)}')
     print(f'Number of error in board detection: {err_board_detection_old}')
     print(f'Number of error in grid detection: {err_grid_detection_old}')
-    print(f'Number of total image discarded for error in board detection and grid detection: {err_grid_detection_old + err_grid_detection_old}')
+    print(f'Number of total image discarded for error in board detection and grid detection: {err_grid_detection_old + err_board_detection_old}')
     print(f'Mean accuracy (only for not discarded images): {mean_accuracy_old}')
     print(f'Correct FEN accuracy (only for not discarded images): {perfect_fen_old} / {len(accuracies_old)} = {correct_fen_accuracy_old}')
 
     mean_accuracy_new = np.array(accuracies_new).mean()
-    perfect_fen_new = np.count_nonzero(100)
+    perfect_fen_new = accuracies_new.count(1)
     correct_fen_accuracy_new = perfect_fen_new/len(img_paths)
 
-    print(f'Test on {len(img_paths)}')
+    print(f'Test on: {len(img_paths)}')
     print(f'Number of accuracies: {len(accuracies_new)}')
     print(f'Number of error in board detection: {err_board_detection_new}')
     print(f'Number of error in grid detection: {err_grid_detection_new}')
-    print(f'Number of total image discarded for error in board detection and grid detection: {err_grid_detection_new + err_grid_detection_new}')
+    print(f'Number of total image discarded for error in board detection and grid detection: {err_grid_detection_new + err_board_detection_new}')
     print(f'Mean accuracy (only for not discarded images): {mean_accuracy_new}')
     print(f'Correct FEN accuracy (only for not discarded images): {perfect_fen_new} / {len(accuracies_new)} = {correct_fen_accuracy_new}')
     

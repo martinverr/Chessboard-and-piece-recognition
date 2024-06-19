@@ -36,7 +36,8 @@ def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNe
                      'b_Rook' : 5, 'w_Bishop' : 6, 'w_King' : 7, 'w_Knight' : 8, 'w_Pawn' : 9, 'w_Queen' : 10,
                      'w_Rook' : 11}
     
-    class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop']
+    # class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop'] resnet50
+    class_names = ['b_Pawn','b_Bishop','b_Knight','b_Rook','b_Queen','b_King', 'w_King','w_Queen','w_Rook','w_Knight','w_Bishop','w_Pawn']
 
     inverted_classes = {value: key for key, value in classes.items()}
     results = []

@@ -64,6 +64,27 @@ class ResNet50(nn.Module):
     def forward(self, x):
         return self.model(x)
     
+class ResNet18(nn.Module):
+    """ResNet18 model.
+    """
+    transform = transforms.Compose([
+        transforms.Resize((80, 160)),
+        transforms.ToTensor()
+        ])
+    shape_input = (80,160)
+    
+    
+    def __init__(self):
+        super().__init__()
+        #self.model = models.resnet18(pretrained=True)
+        self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        n = self.model.fc.in_features
+        self.model.fc = nn.Linear(n, 2)
+        #for param in self.model.parameters():
+        #  param.requires_grad = False
+
+    def forward(self, x):
+        return self.model(x)
 
 class MaskRCNN_board(nn.Module):
 
