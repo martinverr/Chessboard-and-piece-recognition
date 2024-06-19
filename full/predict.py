@@ -1,12 +1,15 @@
 from FEN import FEN
 from chessboard_detection import *
 import torch
+from torch import nn
 import torchvision.transforms as transforms
 from PIL import Image
 from models import *
 from retrieval import retrieval
 import sys
+import json
 
+class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop']
 
 def occupation_classify(model, x):
     model.eval()
@@ -27,7 +30,7 @@ def pieces_classify(model, x):
     return prediction, [class_names[i] for i in prediction]
 
 
-def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual_cpu_stopped", model2_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/'):
+def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual_cpu_stopped", model2_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/', ensamble = False):
     """
     Parameters
     ----------
@@ -48,9 +51,13 @@ def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual
 
 
     occupation_cnn_input = torch.empty([64, 3, 80, 80])
-    for i, img in squares[:,[0,2]]:
-        img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        occupation_cnn_input[i-1] = model.transform(img).reshape([1, 3, 80, 80])
+    try:
+        for i, img in squares[:,[0,2]]:
+            img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            occupation_cnn_input[i-1] = model.transform(img).reshape([1, 3, 80, 80])
+    except:
+        return None, None
+    
     occupation_prediction = occupation_classify(model, occupation_cnn_input)[0]
     
     occupied_squares = squares[occupation_prediction==1]
@@ -60,8 +67,24 @@ def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual
         img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         pieces_cnn_input[i] = model2.transform(img).reshape([1, 3, 80, 160])
 
-    pieces_prediction = pieces_classify(model2, pieces_cnn_input)[1]
-    pieces_retrieval_prediction = retrieval(imgs=pieces_cnn_input, model=model2)
+    if ensamble:
+        pieces_retrieval_fv = retrieval(imgs=pieces_cnn_input, model=model2, ensamble = True) 
+        soft = nn.Softmax(dim=-1)
+        pieces_predict = []
+        with torch.no_grad():
+            pieces = model2(pieces_cnn_input)
+        for p, r in zip(pieces, pieces_retrieval_fv):
+            softy = soft(p)
+            sum_pr = softy + torch.tensor(r)
+            sum_pr = torch.nn.functional.normalize(sum_pr, p=2, dim=0)
+            pieces_predict.append(sum_pr)
+        pieces_predict = torch.stack(pieces_predict)
+        prediction = torch.max(pieces_predict, 1)[1]
+        pieces_prediction = [class_names[i] for i in prediction]
+    else:
+        pieces_prediction = pieces_classify(model2, pieces_cnn_input)[1]
+    
+    pieces_retrieval_prediction = retrieval(imgs=pieces_cnn_input, model=model2) 
 
     return {coord: piece for coord, piece in np.column_stack((occupied_squares[:,1], pieces_prediction))}, {coord: piece for coord, piece in np.column_stack((occupied_squares[:,1], pieces_retrieval_prediction))}
     
@@ -105,6 +128,16 @@ def print_differencies_cnn_retr(cnn_prediction, retrieval_prediction):
             print(coord, ' cnn: ', cnn_prediction[coord], ' retrieval: ', pred)
     if some_differences == False:
         print('No differences found')    
+
+def return_accuracy(predicted_fen, true_fen=None):
+    
+    if true_fen is not None:    
+        diff_dict = result(predicted_fen, true_fen)
+        if len(diff_dict) == 0:
+            accuracy = 0
+        else:
+            accuracy = 1-len(diff_dict)/64
+    return accuracy
 
     
 def main():
@@ -152,6 +185,97 @@ def main():
     # show different prediction
     print_differencies_cnn_retr(cnn_prediction, retrieval_prediction)
 
+def main_ensamble():
+    img_paths = glob.glob('./test/**.png')
+    trues_fen = []
+    views = []
+    for path in img_paths:
+        path_json = path.replace('.png', '.json')
+        with open(path_json, 'r') as path_json:
+            json_data = json.load(path_json)
+        white_turn = json_data['white_turn'] #true is white, false is black
+        fen = json_data['fen']
+        views.append('white' if white_turn == True else 'black')
+        trues_fen.append(fen)
+    
+    accuracies_old = []
+    err_board_detection_old = 0
+    err_grid_detection_old = 0
 
+    accuracies_new = []
+    err_board_detection_new = 0
+    err_grid_detection_new = 0
+
+    
+    for index, img_path in enumerate(img_paths):
+        print(index)
+        # retrieve warped chessboard
+        warpedBoardImg_old_version = board_detection(img_path, old_version=True, verbose_show=False)
+        if warpedBoardImg_old_version is None:
+            print('Error 1st preprocessing pass (Chessboard warping)')
+            err_board_detection_old += 1
+            continue
+        # maskrcnn warping
+        warpedBoardImg_new_version = board_detection(img_path, old_version=False, verbose_show=False)
+        if warpedBoardImg_new_version is None:
+            print('Error 1st preprocessing pass (Chessboard warping)')
+            err_board_detection_new += 1
+            continue
+
+        # Square detection and extraction
+        grid_squares_old_version = grid_detection(warpedBoardImg_old_version, views[index], verbose_show=False)
+        if grid_squares_old_version is None:
+            print('Error in 2nd preprocessing pass (Squares detection)')
+            err_grid_detection_old += 1
+            continue
+
+        grid_squares_new_version = grid_detection(warpedBoardImg_new_version, views[index], verbose_show=False)
+        if grid_squares_old_version is None:
+            print('Error in 2nd preprocessing pass (Squares detection)')
+            err_grid_detection_new += 1
+            continue
+        
+        
+        # predict chessboard position with cnn and retrieval
+        cnn_prediction_old, _ = predict(grid_squares_old_version, ensamble=True)
+        cnn_prediction_new, _ = predict(grid_squares_new_version, ensamble = True)
+
+        if cnn_prediction_new is None or cnn_prediction_old is None:
+            continue
+
+        # show results cnn prediction
+        predicted_fen_old = FEN.dict_to_fen(cnn_prediction_old)
+        accuracies_old.append(return_accuracy(predicted_fen_old, trues_fen[index]))
+
+        # show results cnn prediction
+        predicted_fen_new = FEN.dict_to_fen(cnn_prediction_new)
+        accuracies_new.append(return_accuracy(predicted_fen_new, trues_fen[index]))
+
+    mean_accuracy_old = np.array(accuracies_old).mean()
+    perfect_fen_old = np.count_nonzero(100)
+    correct_fen_accuracy_old = perfect_fen_old/len(img_paths)
+
+    print(f'Test on {len(img_paths)}')
+    print(f'Number of accuracies: {len(accuracies_old)}')
+    print(f'Number of error in board detection: {err_board_detection_old}')
+    print(f'Number of error in grid detection: {err_grid_detection_old}')
+    print(f'Number of total image discarded for error in board detection and grid detection: {err_grid_detection_old + err_grid_detection_old}')
+    print(f'Mean accuracy (only for not discarded images): {mean_accuracy_old}')
+    print(f'Correct FEN accuracy (only for not discarded images): {perfect_fen_old} / {len(accuracies_old)} = {correct_fen_accuracy_old}')
+
+    mean_accuracy_new = np.array(accuracies_new).mean()
+    perfect_fen_new = np.count_nonzero(100)
+    correct_fen_accuracy_new = perfect_fen_new/len(img_paths)
+
+    print(f'Test on {len(img_paths)}')
+    print(f'Number of accuracies: {len(accuracies_new)}')
+    print(f'Number of error in board detection: {err_board_detection_new}')
+    print(f'Number of error in grid detection: {err_grid_detection_new}')
+    print(f'Number of total image discarded for error in board detection and grid detection: {err_grid_detection_new + err_grid_detection_new}')
+    print(f'Mean accuracy (only for not discarded images): {mean_accuracy_new}')
+    print(f'Correct FEN accuracy (only for not discarded images): {perfect_fen_new} / {len(accuracies_new)} = {correct_fen_accuracy_new}')
+    
+
+    return 0
 if __name__ == "__main__":
-    main()
+    main_ensamble()

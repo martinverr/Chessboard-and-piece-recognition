@@ -26,11 +26,17 @@ def get_vector(img, model, lenght_feature_vector=2048):
     return my_embedding
 
 
+def sum_to_one_normalize(lst):
+    total_sum = sum(lst)
+    normalized_lst = [x / total_sum for x in lst]
+    return normalized_lst
 
-def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/'):
+def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/', ensamble = False):
     classes = {'b_Bishop' : 0, 'b_King' : 1, 'b_Knight' : 2, 'b_Pawn' : 3, 'b_Queen' : 4,
                      'b_Rook' : 5, 'w_Bishop' : 6, 'w_King' : 7, 'w_Knight' : 8, 'w_Pawn' : 9, 'w_Queen' : 10,
                      'w_Rook' : 11}
+    
+    class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop']
 
     inverted_classes = {value: key for key, value in classes.items()}
     results = []
@@ -67,8 +73,20 @@ def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNe
         # Conta le occorrenze di ciascuna stringa
         count = Counter(classes_of_first_10)
 
-        # Trova l'elemento più comune
-        most_frequent_class = count.most_common(1)[0][0]
-        results.append(most_frequent_class)
+        if ensamble:
+            # Trova la probability distribution+
+            list = []
+            for k in class_names:
+                if k in count.keys():
+                    list.append(count[k])
+                else:
+                    list.append(0)
+            normalize_probability = sum_to_one_normalize(list)
+            results.append(normalize_probability)
+        else:
+            # Trova l'elemento più comune
+            most_frequent_class = count.most_common(1)[0][0]
+            results.append(most_frequent_class)
 
+    
     return results
