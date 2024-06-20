@@ -165,13 +165,13 @@ def removeOutLiers(lines, grid_pass=False):
         freq_m = most_frequent_in_bined_array(angles_degree[1:].reshape(-1).tolist(), bin_size=1)
         std = np.std(angles_degree[1:])
         removed_lines = lines[np.logical_or(np.abs(angles_degree[1:]) >= (freq_m + 5), np.abs(angles_degree[1:]) < (freq_m - 5)).reshape(-1)]
-        filtered_lines = lines[~(np.logical_or(np.abs(angles_degree[1:]) >= (freq_m + 5), np.abs(angles_degree[1:]) < (freq_m - 5))).reshape(-1)]
+        filtered_lines = lines[~(np.logical_or(np.abs(angles_degree[1:]) >= (freq_m + 5), np.abs(angles_degree[1:]) < (freq_m - 5 ))).reshape(-1)]
         return filtered_lines, removed_lines
     else:
         mean_m = np.mean(angles_degree[1:])
         std = np.std(angles_degree[1:])
-        removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5*std).reshape(-1)]
-        filtered_lines = lines[(~(np.abs(angles_degree[1:] - mean_m) > 2.5*std).reshape(-1))]
+        removed_lines = lines[(np.abs(angles_degree[1:] - mean_m) > 2.5*(std+0.5)).reshape(-1)]
+        filtered_lines = lines[(~(np.abs(angles_degree[1:] - mean_m) > 2.5*(std+0.5)).reshape(-1))]
         return filtered_lines, removed_lines
 
 def abc_line_eq_coeffs(line):
@@ -238,7 +238,7 @@ def sortLinesByDim(lines, dim):
 def warpingSection(chessLines, old_version = False, margins = None):
     """
     Find the delimiter lines of the chessboard.
-    To avoid cut pieces after warp, shift those with certain margins (top:70, left:-50, right:50).
+    To avoid cut pieces after warp, shift those with certain margins (top:70,bottom, left:-50, right:50).
 
     Args:
         chessLines (np.ndarray): @see chessLines
@@ -268,13 +268,13 @@ def warpingSection(chessLines, old_version = False, margins = None):
         margins = [-70, 0, -50, 50]
     if old_version:
         if np.abs(chessLines.mh) < 0.1:
-            margins[2] = 0
-            margins[3] = 0
+            margins[2] = -40
+            margins[3] = 40
         else: 
             if chessLines.mh < -0.1:
-                margins[3] = 0
+                margins[3] = 40
             if chessLines.mh > 0.1:
-                margins[2] = 0
+                margins[2] = -40
     
     #withMargin =  np.empty((0,4), dtype=np.float64)
     for i in range(4):
@@ -387,33 +387,56 @@ def analyze_diff_v2(data, reference_distance):
     #remove outlier
     pair_distances = [pair for pair in pair_distances if pair[0] > ((4/5)*reference_distance) and pair[0] < ((6/5)*reference_distance)]
 
-
     # Collect the unique indices of the pairs until we get 9 indices
     selected_indices = set()
     for distance, i, j in pair_distances:
-        if len(selected_indices) < 9:
-            selected_indices.add(i)
-            if len(selected_indices) < 9:
-                selected_indices.add(j)
-        else:
-            break
+        selected_indices.add(i)
+        selected_indices.add(j)
 
     # Ensure selected indices are sorted
     selected_indices = sorted(selected_indices)
+    combinazioni = list(itertools.combinations(selected_indices, 9))
 
+    error=False
     # Check if the distances between consecutive values in selected_indices are within the specified range
     for k in range(len(selected_indices) - 1):
         i = selected_indices[k]
         j = selected_indices[k + 1]
         if not ((4/5)*reference_distance < abs(data[i] - data[j]) < (6/5)*reference_distance):
+            error=True
+            break
             #Error
             #Decide to delete all lines to rise error
-            all_indices = list(range(len(data)))
-            return np.array(all_indices)
-            
+            #all_indices = list(range(len(data)))
+            #return np.array(all_indices)
+    if(len(combinazioni) == 1 and error==True):
+        #Error
+        #Decide to delete all lines to rise error
+        all_indices = list(range(len(data)))
+        return np.array(all_indices)
+
+    if error==True:
+        for comb in combinazioni:
+            all_correct = True
+            for k in range(len(comb) - 1):
+                i = comb[k]
+                j = comb[k + 1]
+                if not ((4/5)*reference_distance < abs(data[i] - data[j]) < (6/5)*reference_distance):
+                    all_correct = False
+                    break
+            if all_correct == True:
+                selected_indices = comb
+                break
+
 
     all_indices = list(range(len(data)))
     to_be_deleted = [index for index in all_indices if index not in selected_indices]
+    
+    if len(selected_indices) != 9:
+        #Error
+        #Decide to delete all lines to rise error
+        all_indices = list(range(len(data)))
+        return np.array(all_indices)
 
     return np.array(to_be_deleted)
 
@@ -428,6 +451,9 @@ def line_control(img, hlines, vlines, threshold_two_tiles = 0.1, threshold_tile_
     vdim = vlines[:,2]
     h_diff = np.diff(hdim)
     v_diff = np.diff(vdim)
+    
+    if(len(h_diff) < 2 or len(v_diff) < 2):
+        return [], []
     
     h_freq = most_frequent_in_bined_array(h_diff[1:-1])
     v_freq = most_frequent_in_bined_array(v_diff[1:-1])
@@ -543,7 +569,7 @@ def extract_squares(img, points, viewpoint, debug_mode=False):
                     bbox_image = cv2.flip(bbox_image, 1)
 
                 square_info = np.array([square_counter, f"{letter}{number}", square_image, bbox_image], dtype=object)
-                if debug_mode:
+                if False:
                     #square_info = np.array([square_counter, f"{letter}{number}", polypoints, calculate_bbox(polypoints, r, c)], dtype=object)
 
                 

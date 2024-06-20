@@ -18,7 +18,7 @@ from full.models import *
 # Definisci il numero desiderato di immagini per classe
 num_images_per_class = 100
 num_images_tot = 1200
-lenght_feature_vector= 2048
+lenght_feature_vector= 512
 
 
 for filename in os.listdir('./output/training_pieces'):
@@ -60,10 +60,10 @@ for i, dir in enumerate(os.listdir('./output/training_pieces_divided_into_classe
 
 
 ## if you change the Model maybe it will not have the 'avgpool' layer and the fv maybe will not have lenght 512
-lenght_feature_vector = 2048
+lenght_feature_vector = 512
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model_saves_path = './scratch-cnn/modelsaves2/'
-model_name = '2-ResNet50'
+model_name = 'ResNet18_80x160'
 
 def get_vector(image_name, model):
     # 1. Load the image with Pillow library
@@ -89,9 +89,11 @@ def get_vector(image_name, model):
 def generate_feature_vector_file(image_paths_array, model, save_on_file=False):
 
     list_fv = list_fv = np.zeros(shape=(num_images_tot, lenght_feature_vector))
-    classes = {'b_Bishop' : 0, 'b_King' : 1, 'b_Knight' : 2, 'b_Pawn' : 3, 'b_Queen' : 4,
-                     'b_Rook' : 5, 'w_Bishop' : 6, 'w_King' : 7, 'w_Knight' : 8, 'w_Pawn' : 9, 'w_Queen' : 10,
-                     'w_Rook' : 11}
+    classes = {
+    'b_Pawn': 0, 'b_Bishop': 1, 'b_Knight': 2, 'b_Rook': 3, 
+    'b_Queen': 4, 'b_King': 5, 'w_King': 6, 'w_Queen': 7, 
+    'w_Rook': 8, 'w_Knight': 9, 'w_Bishop': 10, 'w_Pawn': 11
+}
 
     for i, image_path in enumerate(image_paths_array):
         if image_path is not None:
@@ -109,7 +111,7 @@ def generate_feature_vector_file(image_paths_array, model, save_on_file=False):
 
     if save_on_file:
         ## save
-        torch.save(data, './retrieval/feature_vector_pieces.pt')
+        torch.save(data, './retrieval/feature_vector_pieces_resnet18.pt')
         return data
 
 
@@ -117,4 +119,4 @@ def generate_feature_vector_file(image_paths_array, model, save_on_file=False):
 model = torch.load(f'{model_saves_path}{model_name}.pth', map_location=device)
 generate_feature_vector_file(image_paths_array=image_paths_array, model=model, save_on_file=True)
 
-print('File generato, il file contiene 1200 righe da 2049 (in prima posizione c\'è il path dell\'immagine poi feature vector)')
+print('File generato, il file contiene 1200 righe da 513 (in prima posizione c\'è il path dell\'immagine poi feature vector)')

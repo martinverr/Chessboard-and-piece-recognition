@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torchvision import models as torchmodels
+from torchvision import models
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from torchvision.models.detection import MaskRCNN_ResNet50_FPN_Weights
@@ -35,7 +36,33 @@ class CNN_80x80_2Conv_2Pool_2FC(nn.Module):
         probabilities = F.softmax(x, dim=1)
         return probabilities
     
+class ResNet18(nn.Module):
+    """ResNet18 model.
+    """
+    transform = transforms.Compose([
+        transforms.Resize((80, 160)),
+        transforms.ToTensor()
+        ])
+    shape_input = (80,160)
 
+    transform2 = transforms.Compose([
+    transforms.Resize(128),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
+    ])
+    
+    def __init__(self):
+        super().__init__()
+        #self.model = models.resnet18(pretrained=True)
+        self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        n = self.model.fc.in_features
+        self.model.fc = nn.Linear(n, 2)
+        #for param in self.model.parameters():
+        #  param.requires_grad = False
+
+    def forward(self, x):
+        return self.model(x)
 
 class ResNet50(nn.Module):
     """ResNet model.
