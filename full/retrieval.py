@@ -3,6 +3,15 @@ import torch
 import numpy as np
 import os
 from collections import Counter
+import time
+import glob
+import cv2
+import torchvision.transforms as transforms
+from models import *
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+import matplotlib.pyplot as plt
+
 
 def get_vector(img, model, lenght_feature_vector=2048):
     model.eval()
@@ -31,20 +40,38 @@ def sum_to_one_normalize(lst):
     normalized_lst = [x / total_sum for x in lst]
     return normalized_lst
 
-def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/', ensamble = False):
-    classes = {'b_Bishop' : 0, 'b_King' : 1, 'b_Knight' : 2, 'b_Pawn' : 3, 'b_Queen' : 4,
-                     'b_Rook' : 5, 'w_Bishop' : 6, 'w_King' : 7, 'w_Knight' : 8, 'w_Pawn' : 9, 'w_Queen' : 10,
-                     'w_Rook' : 11}
+def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/', fv_path = 'retrieval/feature_vector_pieces',ensamble = False):
+    # classes = {'b_Bishop' : 0, 'b_King' : 1, 'b_Knight' : 2, 'b_Pawn' : 3, 'b_Queen' : 4,
+    #                  'b_Rook' : 5, 'w_Bishop' : 6, 'w_King' : 7, 'w_Knight' : 8, 'w_Pawn' : 9, 'w_Queen' : 10,
+    #                  'w_Rook' : 11} resnet50
+    classes = {
+  'b_Pawn': 0,
+  'b_Bishop': 1,
+  'b_Knight': 2,
+  'b_Rook': 3,
+  'b_Queen': 4,
+  'b_King': 5,
+  'w_King': 6,
+  'w_Queen': 7,
+  'w_Rook': 8,
+  'w_Knight': 9,
+  'w_Bishop': 10,
+  'w_Pawn': 11
+}
     
-    # class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop'] resnet50
-    class_names = ['b_Pawn','b_Bishop','b_Knight','b_Rook','b_Queen','b_King', 'w_King','w_Queen','w_Rook','w_Knight','w_Bishop','w_Pawn']
+    #class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop'] 
+    class_names = ['b_Pawn','b_Bishop','b_Knight','b_Rook','b_Queen','b_King', 'w_King','w_Queen','w_Rook','w_Knight','w_Bishop','w_Pawn'] 
 
     inverted_classes = {value: key for key, value in classes.items()}
     results = []
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = torch.load(f"{model_saves_path}{model_name}.pth", map_location=device)
+    if model == None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = torch.load(f"{model_saves_path}{model_name}.pth", map_location=device)
 
-    loaded = torch.load('retrieval/feature_vector_pieces.pt')
+    else:
+        model = model
+
+    loaded = torch.load(f'{fv_path}.pt')
 
     feature_vector_tensor = torch.from_numpy(np.array(loaded[:, 1:]))
     classes_column = loaded[:,0].tolist()
@@ -52,8 +79,11 @@ def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNe
     known_feature_vectors_normalized = torch.nn.functional.normalize(feature_vector_tensor, p=2, dim=1)
 
     # the img for the query
+    numb = 0
     for img in imgs:
-        new_feature_vector_normalized = get_vector(img, model)
+        print(f"Computing img {numb}")
+        numb = numb +1
+        new_feature_vector_normalized = get_vector(img, model, lenght_feature_vector = lenght_feature_vector)
         new_feature_vector_normalized = torch.nn.functional.normalize(new_feature_vector_normalized, p=2, dim=0)
 
         # Compute cosine similarity between new_feature_vector and every feature vector in known_feature_vectors
@@ -91,3 +121,82 @@ def retrieval(imgs, model=None, lenght_feature_vector=2048, model_name ='2-ResNe
 
     
     return results
+
+if __name__ == "__main__":
+    model2_name = "ResNet18_80x160"
+    print(f"Retrieval test - {model2_name}")
+    img_paths = glob.glob('./test_pieces/**.png')
+    annotation_path = glob.glob('./test_pieces/**.txt')
+    class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop'] 
+    correct = 0
+    accuracy = 0
+
+
+    if len(img_paths) == len(annotation_path):
+        image_tensors = []
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model2 = torch.load(f"./scratch-cnn/modelsaves3/{model2_name}.pth", map_location=device)
+
+        for path in img_paths:
+            image = cv2.imread(path)  # Open image
+            img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            pieces_cnn_input = model2.transform(img).reshape([3, 80, 160])
+            image_tensors.append(pieces_cnn_input)  # Add tensor to the list
+
+        ground_true = []
+        for ann in annotation_path:
+                with open(ann, 'r') as file:
+                    # Read the first line
+                    first_line = file.readline().strip()
+                    # Extract the first word from the first line
+                    if first_line:
+                        first_word = first_line.split()[0]
+                        ground_true.append(first_word)
+        
+        
+        start_time = time.time()
+
+        result_retrieval = retrieval(image_tensors, model=model2, lenght_feature_vector=512, fv_path = 'retrieval/feature_vector_pieces_resnet18' )
+
+        end_time = time.time()
+
+        for ret,lable in zip(result_retrieval, ground_true):
+            if ret == lable:
+                correct += 1
+                print(f"{ret} | {lable}")
+            else:
+                print(ret, lable)
+
+        duration = end_time - start_time
+        print(f"The entire operation took {duration} seconds.")
+
+
+        # Calcolo della matrice di confusione
+        cm = confusion_matrix(ground_true, result_retrieval, labels= class_names)
+        cmd = ConfusionMatrixDisplay(cm, display_labels=class_names)
+
+        # Plot della matrice di confusione
+        fig, ax = plt.subplots(figsize=(8, 8))
+        cmd.plot(ax=ax, cmap="Blues")
+        plt.xticks(rotation=90)
+        plt.title("Confusion Matrix")
+        plt.show()
+
+        # Calcola l'accuracy
+        accuracy = accuracy_score(ground_true, result_retrieval)
+
+        # Calcola l'F1 score
+        f1 = f1_score(ground_true, result_retrieval, average='macro')
+
+        # Calcola la precision
+        precision = precision_score(ground_true, result_retrieval, average='macro')
+
+        # Calcola la recall
+        recall = recall_score(ground_true, result_retrieval, average='macro')
+
+        print(f'Accuracy: {accuracy:.4f}')
+        print(f'F1 Score: {f1:.4f}')
+        print(f'Precision: {precision:.4f}')
+        print(f'Recall: {recall:.4f}')
+    else:
+        raise TypeError("Error in lengh directory, missmatch annotation and img lenght")

@@ -270,7 +270,7 @@ def main_ensamble():
     perfect_fen_old = accuracies_old.count(1)
     correct_fen_accuracy_old = perfect_fen_old/len(img_paths)
 
-    print(f"--------------------- ENSAMBLE {ensamble} ----------------")
+    print(f"--------------------- ENSEMBLE {ensamble} ----------------")
     print(f'Test on {len(img_paths)}')
     print(f'Number of accuracies: {len(accuracies_old)}')
     print(f'Number of error in board detection: {err_board_detection_old}')
