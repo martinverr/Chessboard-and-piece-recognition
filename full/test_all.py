@@ -69,13 +69,13 @@ def predict(squares : np.ndarray, model_name = "Occupancy_ResNet18_transf_stdres
     if ensamble:
         pieces_retrieval_fv = retrieval(imgs=pieces_cnn_input, model=model2, ensamble = True) 
         soft = nn.Softmax(dim=-1)
-        alpha = 0
+        alpha = 0.7
         pieces_predict = []
         with torch.no_grad():
             pieces = model2(pieces_cnn_input)
         for p, r in zip(pieces, pieces_retrieval_fv):
             softy = soft(p)
-            sum_pr = softy + torch.tensor(r)
+            sum_pr = softy + (alpha*torch.tensor(r))
             sum_pr = torch.nn.functional.normalize(sum_pr, p=2, dim=0)
             pieces_predict.append(sum_pr)
         pieces_predict = torch.stack(pieces_predict)
@@ -107,12 +107,12 @@ def return_accuracy(predicted_fen, true_fen=None):
             accuracy = 1
         else:
             accuracy = 1-len(diff_dict)/64
-            # print(f"Accuracy: {1-len(diff_dict)/64:.1%}")
-            print(f"{len(diff_dict)} Errors:")
-            print(f"{'Square':^8}|{'Predicted':^12}|{'Truth':^10}")
+            #print(f"Accuracy: {1-len(diff_dict)/64:.1%}")
+            #print(f"{len(diff_dict)} Errors:")
+            #print(f"{'Square':^8}|{'Predicted':^12}|{'Truth':^10}")
             for square, piece_pair in diff_dict.items():
                 pred, true = piece_pair
-                print(f"{square:^8}|{pred:^12}|{true:^10}")
+                #print(f"{square:^8}|{pred:^12}|{true:^10}")
     
     #print(f"\n{'#'*32}\n")
     return accuracy, len(diff_dict)
@@ -129,8 +129,8 @@ def print_differencies_cnn_retr(cnn_prediction, retrieval_prediction):
 
 
 
-def main():
-    ensamble = False
+def main(old=False,  ens=False, sigma1 = None, sigma2 = None):
+    ensamble = ens
 
     img_paths = glob.glob('./input/****.png')
     trues_fen = []
@@ -152,29 +152,38 @@ def main():
 
     
     for index, img_path in enumerate(img_paths):
-        print(f"Img: {img_path}")
+        import time
+        start_time = time.time()
         # retrieve warped chessboard
         # maskrcnn warping
-        warpedBoardImg_new_version = board_detection(img_path, old_version=True, verbose_show=False)
+        warpedBoardImg_new_version = board_detection(img_path, old_version=old, verbose_show=False, sigma=sigma1)
         if warpedBoardImg_new_version is None:
-            print('Error 1st preprocessing pass (Chessboard warping)')
+            #print('Error 1st preprocessing pass (Chessboard warping)')
             err_board_detection_new += 1
             continue
 
 
-        grid_squares_new_version = grid_detection(warpedBoardImg_new_version, views[index], verbose_show=False)
+        grid_squares_new_version = grid_detection(warpedBoardImg_new_version, views[index], verbose_show=False, sigma=sigma2)
         if grid_squares_new_version is None:
-            print('Error in 2nd preprocessing pass (Squares detection)')
+            #print('Error in 2nd preprocessing pass (Squares detection)')
             err_grid_detection_new += 1
             continue
-        
-        
+
         # predict chessboard position with cnn and retrieval
-        cnn_prediction_new, _ = predict(grid_squares_new_version, ensamble =ensamble, model_name = "Occupancy_ResNet18_transf_stdresnet", model2_name ="ResNet18_80x160", model_saves_path = './scratch-cnn/modelsaves2/')
+        cnn_prediction_new, pred_fen = predict(grid_squares_new_version, ensamble =ensamble, model_name = "Occupancy_ResNet18_transf_stdresnet", model2_name ="ResNet18_80x160", model_saves_path = './scratch-cnn/modelsaves2/')
 
         # show results cnn prediction
         predicted_fen_new = FEN.dict_to_fen(cnn_prediction_new)
         accuracy, mistakes = return_accuracy(predicted_fen_new, trues_fen[index])
+        #print_differencies_cnn_retr(cnn_prediction_new, pred_fen)
+
+
+        if mistakes > 3:
+            return
+        
+        # if err_grid_detection_new+err_board_detection_new > 30:
+        #     return
+
         accuracies_new.append(accuracy)
         mistakes_for_image_new.append(mistakes)
 
@@ -196,4 +205,21 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    
+    # sigmas1=[0.33, 0.25, 0.45]
+    # sigmas2=[0.25, 0.33, 0.45]
+    # for sigma1 in sigmas1:
+    #     for sigma2 in sigmas2:
+    #             print('sigma1: ',sigma1)
+    #             print('sigma2: ',sigma2)
+    #             main(old = True, ens = False, sigma1=sigma1, sigma2=sigma2)
+                
+
+    print('geometric, ens off')
+    main(old=True, ens=False, sigma1=0.33, sigma2=0.25)
+    print('geometric, ens on (70%)')
+    main(old=True, ens=True, sigma1=0.33, sigma2=0.25)
+    print('mask rcnn, ens off')
+    main(old=False, ens=False, sigma1=0.33, sigma2=0.25)
+    print('mask rcnn, ens on (70%)')
+    main(old=False, ens=True, sigma1=0.33, sigma2=0.25)
