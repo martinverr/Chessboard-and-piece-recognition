@@ -10,7 +10,7 @@ from maskrcnn_chessboard_detection import *
 import warnings
 warnings.filterwarnings("ignore")
 
-def _board_detection_geometic(fname : str, verbose_show=False):
+def _board_detection_geometic(fname : str, verbose_show=False, sigma=0.40):
     """
     Given a filename, returns the warped board image.
 
@@ -35,7 +35,7 @@ def _board_detection_geometic(fname : str, verbose_show=False):
         cv2.waitKey(0)
 
     bilateral_img = img.copy()
-    bilateral_img = cv2.bilateralFilter(img, 3, 100, 70)
+    bilateral_img = cv2.bilateralFilter(img, 9, 200, 200)         
     if verbose_show:
         cv2.imshow(f"bilateral filter", bilateral_img)
         cv2.waitKey(0)
@@ -44,13 +44,14 @@ def _board_detection_geometic(fname : str, verbose_show=False):
 
 
     #TODO adaptive threshold
-    edges = cv2.Canny(gray, 70, 400, apertureSize=3)
+    edges = auto_canny(gray, sigma, False)
+    #edges = cv2.Canny(gray, 50, 350, apertureSize=3)
     if verbose_show:
         cv2.imshow(f"cannied", edges)
         cv2.waitKey(0)
 
     # Hough line prob detection
-    lines2 = cv2.HoughLinesP(edges, 1, np.pi/180, 69, minLineLength=30, maxLineGap=50)
+    lines2 = cv2.HoughLinesP(edges, 1, np.pi/180, 60, minLineLength=30, maxLineGap=40)
     lines2 = np.reshape(lines2, (-1, 4))
     lines2 = np.array([two_points_to_polar(line) for line in lines2])
     
@@ -116,31 +117,33 @@ def _board_detection_geometic(fname : str, verbose_show=False):
                         (int(line[2]), 350),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.4,
                         (0,0,255), 2)
-        cv2.imshow("grid_detection: clustered lines", imgcopy)
+        cv2.imshow("geometric: clustered lines", imgcopy)
         cv2.waitKey(0)
             
     
     # abort if clustered lines are less than expected
     if len(hLinesCLustered) < 9 or len(vLinesCLustered) < 9:
-            print("Not enough lines found, provide a better image")
+            if(verbose_show == True):
+                print("Not enough lines found, provide a better image")
             return None
     
     # 4 corner della sezione dell'immagine da warpare
-    warpingSectionCorners = warpingSection(chessLines, old_version=True, margins=[-70,20,-20,20])
-
+    warpingSectionCorners = warpingSection(chessLines, old_version=True, margins=[-90, 20,-20,20])
+  
     # Perspective transform
     new_img = four_point_transform(img_for_wrap, warpingSectionCorners, (700, 700 + 100))
     
     if verbose_show:
+        #cv2.imwrite("./warped.jpg", new_img)
         cv2.imshow("warped", new_img)
         cv2.waitKey(0)
 
     # return warped image of chessboard + margin
     return new_img
 
-def board_detection(fname : str, old_version = False, verbose_show=False, model = None):
+def board_detection(fname : str, old_version = False, verbose_show=False, model = None, sigma=None):
     if old_version:
-        warp_img  = _board_detection_geometic(fname=fname, verbose_show=verbose_show)
+        warp_img  = _board_detection_geometic(fname=fname, verbose_show=verbose_show, sigma=sigma)
     else:
         warp_img = _board_detection_maskrcnn(fname=fname, verbose_show=verbose_show, model=model)
     return warp_img
@@ -219,7 +222,7 @@ def _board_detection_maskrcnn(fname : str, verbose_show=False, model = None):
     return new_img
 
 
-def grid_detection(img, viewpoint, verbose_show=False):
+def grid_detection(img, viewpoint, verbose_show=False, sigma=0.05):
     """
     It is assumed that the first pass has been done, and therefore the input image has been warped.
     
@@ -249,25 +252,27 @@ def grid_detection(img, viewpoint, verbose_show=False):
     
     assert img is not None
     bilateral_img = img.copy()
-    bilateral_img = cv2.bilateralFilter(img, 9, 75, 75)
+    bilateral_img = cv2.bilateralFilter(img, 7, 150, 150)
     if verbose_show:
         cv2.imshow(f"bilateral filter", bilateral_img)
         cv2.waitKey(0)
 
     gray = cv2.cvtColor(bilateral_img, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 45, 350, apertureSize=3)
+
+    edges = auto_canny(gray, sigma, False)
+    #edges = cv2.Canny(gray, 40, 325, apertureSize=3)
     if verbose_show:
         cv2.imshow(f"grid_detection: cannied", edges)
         cv2.waitKey(0)
     
-    # Hough line prob detection
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 50, minLineLength=30, maxLineGap=50)
+    # Hough line prob detection          
+    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 55, minLineLength=35, maxLineGap=60)   
     lines = np.reshape(lines, (-1, 4))
     lines = np.array([two_points_to_polar(line) for line in lines])
     
     imgcopy = img.copy()
     if verbose_show:
-        output_lines(imgcopy, lines, (0,255,0))
+        output_lines(imgcopy, lines, (0,255,0)) 
         cv2.imshow("grid_detection: lines prob", imgcopy)
         cv2.waitKey(0)
     
@@ -326,18 +331,22 @@ def grid_detection(img, viewpoint, verbose_show=False):
         cv2.imshow("grid_detection: clustered lines", imgcopy)
         cv2.waitKey(0)
     
-    
-    
+    if len(hLinesCLustered) < 9 or len(vLinesCLustered) < 9:
+        if(verbose_show == True):
+            print("Not enough lines found, provide a better image")
+        return None
     # eliminazione bordi e aggiunta linee mancanti
     hLinesFinal, vLinesFinal = line_control(img, hLinesCLustered, vLinesCLustered, verbose=False)
 
     # abort if lines are less than expected
     if len(hLinesFinal) < 9 or len(vLinesFinal) < 9:
-        print("Not enough lines found, provide a better image")
+        if(verbose_show == True):
+            print("Not enough lines found, provide a better image")
         return None
     
     if len(hLinesFinal) > 9 or len(vLinesFinal) > 9:
-        print("Too much lines found, provide a better image")
+        if(verbose_show == True):
+            print("Too much lines found, provide a better image")
         return None
 
     # Trova i punti in ordine
@@ -365,21 +374,23 @@ def grid_detection(img, viewpoint, verbose_show=False):
     if False:
         for square_coord, squareimg, bboximg in squares[:, 1:]:
             squareimg2 = squareimg.copy()
-            cv2.putText(squareimg2,
-                        square_coord,
-                        (0, 25),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1,
-                        (0,0,255), 1)
+            # cv2.putText(squareimg2,
+            #             square_coord,
+            #             (0, 25),  
+            #             cv2.FONT_HERSHEY_SIMPLEX, 1,
+            #             (0,0,255), 1)
             cv2.imshow(f'Square', squareimg2)
+            cv2.imwrite(f'./{square_coord}.jpg', squareimg2)
             cv2.waitKey(0)
 
             bboximg2 = bboximg.copy()
-            cv2.putText(squareimg2,
-                        square_coord,
-                        (0, 25),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1,
-                        (0,0,255), 1)
-            cv2.imshow(f'Square', bboximg2)
+            # cv2.putText(bboximg2,
+            #             square_coord,
+            #             (0, 25),
+            #             cv2.FONT_HERSHEY_SIMPLEX, 1,
+            #             (0,0,255), 1)
+            cv2.imshow(f'piece', bboximg2)
+            cv2.imwrite(f'./0_{square_coord}.jpg', bboximg2)
             cv2.waitKey(0)
     
     cv2.destroyAllWindows()
@@ -395,16 +406,17 @@ def main():
     error = []
     analyzed_img = 0
 
-    tommaso = False
+    verbose_show = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = MaskRCNN_board() 
     model.model.load_state_dict(torch.load('./maskRCNN_epoch_4_.pth', map_location = device))
-    model.to(device)
+    model.to(device)   
     model.eval()
     
+    import time
 
-    input_imgs = glob.glob('./input/****.png')
+    input_imgs = glob.glob('./input/**1132**.png')
     print(f"INPUT IMGS : {input_imgs}")
     for input_img in input_imgs[:100]:
         analyzed_img = analyzed_img +1
@@ -413,14 +425,15 @@ def main():
 
         print(f"file found: {input_img}")
         imgname = input_img.split('\\')[-1]
-    
-        warpedBoardImg = board_detection(input_img, verbose_show=tommaso, old_version=False, model = model)
+
+
+        warpedBoardImg = board_detection(input_img, verbose_show=verbose_show, old_version=True, model = model, sigma = 0.33)
         if warpedBoardImg is None:
             error_board.append(input_img)
             error.append(input_img)
             continue
 
-        img_grid = grid_detection(warpedBoardImg, viewpoint='White', verbose_show=tommaso)
+        img_grid = grid_detection(warpedBoardImg, viewpoint='White', verbose_show=verbose_show, sigma = 0.25)
         if img_grid is None:
             error_grid.append(input_img)
             error.append(input_img)

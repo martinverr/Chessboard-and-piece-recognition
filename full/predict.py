@@ -19,7 +19,8 @@ def occupation_classify(model, x):
 
 def pieces_classify(model, x):
     model.eval()
-    class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop']
+    #class_names = ['b_Knight', 'w_Knight','w_Queen','b_Queen','b_Rook','w_Bishop','w_Rook','w_Pawn','b_King','w_King','b_Pawn','b_Bishop'] resnet 50
+    class_names = ['b_Pawn','b_Bishop','b_Knight','b_Rook','b_Queen','b_King', 'w_King','w_Queen','w_Rook','w_Knight','w_Bishop','w_Pawn']
     with torch.no_grad():
         y = model(x)
         #display(torch.max(output, 1))
@@ -27,7 +28,7 @@ def pieces_classify(model, x):
     return prediction, [class_names[i] for i in prediction]
 
 
-def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual_cpu_stopped", model2_name ='2-ResNet50', model_saves_path = './scratch-cnn/modelsaves2/'):
+def predict(squares : np.ndarray, model_name = "Occupancy_CNN_80x80_2Conv_2Pool_2FC", model2_name ='ResNet18_80x160', model_saves_path = './scratch-cnn/modelsaves2/'):
     """
     Parameters
     ----------
@@ -43,7 +44,7 @@ def predict(squares : np.ndarray, model_name = "CNN_80x80_2Conv_2Pool_2FC_manual
     dictionary of occupied squares as pair <coords: piece>
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = torch.load(f"{model_saves_path}{model_name}.pth")
+    model = torch.load(f"{model_saves_path}{model_name}.pth", map_location=device)
     model2 = torch.load(f"{model_saves_path}{model2_name}.pth", map_location=device)
 
 
@@ -122,18 +123,18 @@ def main():
         true_fen = None
 
     # retrieve warped chessboard
-    warpedBoardImg = board_detection(img_path, old_version=True, verbose_show=True)
+    warpedBoardImg = board_detection(img_path, old_version=True, verbose_show=False)
     if warpedBoardImg is None:
         print('Error 1st preprocessing pass (Chessboard warping)')
         exit(-2)
     # maskrcnn warping
-    warpedBoardImg = board_detection(img_path, old_version=False, verbose_show=True)
-    if warpedBoardImg is None:
-        print('Error 1st preprocessing pass (Chessboard warping)')
-        exit(-2)
+    # warpedBoardImg = board_detection(img_path, old_version=False, verbose_show=True)
+    # if warpedBoardImg is None:
+    #     print('Error 1st preprocessing pass (Chessboard warping)')
+    #     exit(-2)
 
     # Square detection and extraction
-    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=True)
+    grid_squares = grid_detection(warpedBoardImg, view, verbose_show=False)
     if grid_squares is None:
         print('Error in 2nd preprocessing pass (Squares detection)')
         exit(-3)

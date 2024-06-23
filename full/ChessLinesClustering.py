@@ -8,15 +8,15 @@ from chessboard_detection_functions import output_lines
 
 class ChessLines():
     """ Divides all 'lines' into 'h'(horizontal) and 'v'(vertical) lines
-    
+
     Cluster lines if cluster_type is specified
-        
+
     Parameters
     ----------
 
     lines : ndarray
         Supposed to be all the lines found in something like Hough
-    
+
     cluster_type : string, default = None
         possible values are None, 'KmeansLines'
     """
@@ -25,14 +25,14 @@ class ChessLines():
     _h, _v, all, cluster_type = None, None, None, None
 
     def __init__(self, lines, W, H, cluster_type=None):
-        
+
         self.lines = np.reshape(lines, (-1, 2))
-        
+
         tocluster = np.column_stack((
-            np.sin(self.lines[:,1]*2), 
+            np.sin(self.lines[:,1]*2),
             np.cos(self.lines[:,1]*2)
             ))
-        
+
         angleClustering = skcluster.KMeans(n_clusters=2).fit(tocluster)
         self._angleClustering = angleClustering
         self._h = self.lines[angleClustering.labels_==0]
@@ -43,7 +43,7 @@ class ChessLines():
         mv, self._v = self._addInterceptionsToLines(self._v, W=W, H=H)
         self.mh = mh
         self.mv = mv
-        
+
         # horizontal have m of vertical, wrong, so swap
         if np.abs(mh) > np.abs(mv):
             tmp = self._v
@@ -54,30 +54,30 @@ class ChessLines():
 
         if cluster_type is not None:
             self.cluster()
-    
+
 
     def cluster(self, cluster_type=None, img=None, W=800, H=800):
         """ Update cluster_type of the class if given
-        
+
         Cluster lines if cluster_type is specified
-            
+
         Parameters
         ----------
 
         cluster_type : string, default = None
             possible values are:
                 None : default, no cluster, every line is considered
-                
+
                 'KmeansLines' : cluster lines with k-means, centroids as rho and theta;
                 care that the no. of group of lines must be 9 x 9
 
-                'manual' : no ML algorithms involved (has to be implemented) 
+                'manual' : no ML algorithms involved (has to be implemented)
 
                 'DBSCAN' : cluster lines with DBSCAN, dimension considered to evaluate distance
                 are 2-3, so hSteps and vSteps (see _addInterceptionsToLines)
 
         """
-            
+
         if cluster_type is not None:
             self.cluster_type = cluster_type
         if self.cluster_type == 'KmeansLines':
@@ -87,7 +87,7 @@ class ChessLines():
         elif self.cluster_type == 'DBSCAN':
             self._h_clustered, self._v_clustered = self._DBSCANLines()
 
-        
+
     def getHLines(self):
         return self._h
     
@@ -105,7 +105,7 @@ class ChessLines():
     
     def getVLinesClustered(self):
         return self._v_clustered
-    
+
 
     def _DBSCANLines(self):
         clusteringH = skcluster.DBSCAN(eps=15, min_samples=1).fit(self._h[:,3].reshape(-1,1))
@@ -114,13 +114,30 @@ class ChessLines():
         hClusteredLines = np.empty((0,4), dtype=np.float64)
         vClusteredLines = np.empty((0,4), dtype=np.float64)
 
+
         for c in np.sort(np.unique(clusteringH.labels_)):
             hc_cluster_line = self._h[clusteringH.labels_ == c] #tutte le linee del cluster c
             hClusteredLines = np.append(hClusteredLines, np.mean(hc_cluster_line, axis=0).reshape((1,4)), axis=0)
+            # theta_values = hc_cluster_line[:, 1]
+            # hClusteredLines[-1, 1] = np.arctan2(np.mean(np.sin(theta_values)), np.mean(np.cos(theta_values)))
+            # hClusteredLines[-1, :]
+
 
         for c in np.sort(np.unique(clusteringV.labels_)):
             vc_cluster_line = self._v[clusteringV.labels_ == c] #tutte le linee del cluster c
+            # print(vc_cluster_line)
+            # for v in vc_cluster_line:
+            #     if v[1] > np.pi/2:
+            #         v[1] = v[1] - (np.pi)
+            #         v[0] = v[0] * -1
+            #         print('dentro: ', v[1])
+            #         print(v[0])
+     
             vClusteredLines = np.append(vClusteredLines, np.mean(vc_cluster_line, axis=0).reshape((1,4)), axis=0)
+            theta_values = vc_cluster_line[:, 1]
+            vClusteredLines[-1, 1] = np.arctan2(np.mean(np.sin(theta_values)), np.mean(np.cos(theta_values)))
+            vClusteredLines[-1, :]
+        #print(vClusteredLines[:,:2])
 
         #print(f"from {self._h.shape[0]} to {vClusteredLines.shape[0]}")
         #print(f"from {self._v.shape[0]} to {hClusteredLines.shape[0]}")
@@ -154,16 +171,16 @@ class ChessLines():
 
 
     def _manualClustering(self, image=None, W=800, H=800, verbose=False):
-        
+
         self._sortHLinesByIntersectionY()
-        self._sortVLinesByIntersectionX() 
+        self._sortVLinesByIntersectionX()
 
         v_steps = np.abs(self._v[1:, 2] - self._v[:-1, 2])
         v_avg_step = np.sum(v_steps) / self._v.shape[0]
-        
+
         h_steps = np.abs(self._h[1:, 3] - self._h[:-1, 3])
         h_avg_step = np.sum(h_steps) / self._h.shape[0]
-        
+
         if verbose:
             output_lines(image, self._v, [0,0,255])
             print("\nIntersezioni linee verticali:")
@@ -171,7 +188,7 @@ class ChessLines():
             print("Steps:")
             print(v_steps)
             print(v_avg_step)
-        
+
         if verbose:
             output_lines(image, self._h, [0,255,0])
             print("\nIntersezioni linee orizzontali:")
@@ -179,10 +196,10 @@ class ChessLines():
             print("Steps:")
             print(h_steps)
             print(h_avg_step)
-        
+
         return self._manualClustering_on(self._h, h_avg_step, 3, tolerance=0.7), \
                 self._manualClustering_on(self._v, v_avg_step, 2, tolerance=0.7)
-            
+
 
     def _agglomerativeCLustering(self):
         # prova con cluster agglomerativo(no n_cluster necessario)
@@ -199,12 +216,12 @@ class ChessLines():
 
     def _sortVLinesByIntersectionX(self):
         self._v = self._v[self._v[:, 2].argsort()]
-    
+
     def _addInterceptionsToLines(self, lines, image=None, W=800, H=800, verbose=False):
         # in case we are debugging, for visual easyness, try to presort (sort by rho does not work perfectly)
         if verbose:
             self._sortLinesByRho()
-        
+
         # vars of the previous line for the loop so that can be compared to the current one
         m_old = None
         c_old = None
@@ -212,22 +229,22 @@ class ChessLines():
         prev_line = None
         prev_intersectionX = None
         intersections = np.ndarray(shape=(1,2), dtype=np.float32)
-        
+
         for rho, theta in lines:
             # P0 punto proiezione da origine a retta
             x0 = np.cos(theta)*rho
             y0 = np.sin(theta)*rho
-            
+
             # P1 punto casuale calcolato a partire da P0
             x1 = int(x0 + 2000 * (-np.sin(theta)))
             y1 = int(y0 + 2000 * (np.cos(theta)))
-            
+
             # P2 punto casuale calcolato a partire da P0
             x2 = int(x0 - 2000 * (-np.sin(theta)))
             y2 = int(y0 - 2000 * (np.cos(theta)))
-            
+
             """ y = mx + c """
-            #TODO find a better solution for division by zero 
+            #TODO find a better solution for division by zero
             if x2-x1 != 0:
                 m = float(y2 - y1) / (x2 - x1)
             else:
@@ -236,7 +253,7 @@ class ChessLines():
             coefficients = [m, c]
             intersectionX = line_intersection(m, c, 0, H/2)[0]
             intersectionY = m * W/2 + c
-            
+
             intersections = np.append(intersections, np.ndarray(buffer=np.array([intersectionX, intersectionY]), shape=(1,2)), axis=0)
 
             if verbose:
@@ -254,18 +271,18 @@ class ChessLines():
                     cv2.line(image,(x1,y1),(x2,y2),(255,0,0),2)
                     cv2.imshow(f"{(rho, theta)}", image)
                     cv2.waitKey(0)
-            
+
             # remember as next previous line
             m_old = m
             m_sum += np.abs(m)
             c_old = c
             prev_line = [rho, theta]
             prev_intersectionX = intersectionX
-        
-        
+
+
         m = m_sum / lines.shape[0]
         return m, np.append(lines, intersections[1:], axis=1)
-        
+
     def _manualClustering_on(self, lines, avg_step, cmpdim, tolerance=0.5, verbose=False, image=None):
         dividing_step = avg_step * tolerance
         clustered_lines = np.zeros(shape=(1,4), dtype=np.float64)
@@ -277,7 +294,7 @@ class ChessLines():
                 buffer_cluster_lines[0] = currLine
                 clusterLine_counter = 1
                 continue
-            
+
             if currLine[cmpdim] - lines[counter-1][cmpdim] < dividing_step:
                 if clusterLine_counter == 0:
                     buffer_cluster_lines[0] = currLine.reshape(1,4)
@@ -300,7 +317,7 @@ class ChessLines():
                     print(buffer_cluster_lines)
                     print("sono state clusterizzate in:")
                     print(clustered_line)
-        
+
         if clusterLine_counter == 0:
             clustered_line = currLine.reshape(1,4)
         else:
@@ -311,7 +328,7 @@ class ChessLines():
             output_lines(image, clustered_line, (0,255,0))
             cv2.imshow(f"clustered lines manual{counter}", image)
             cv2.waitKey(0)
-        
+
         return clustered_lines
 
 
